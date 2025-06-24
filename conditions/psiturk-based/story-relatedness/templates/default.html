@@ -1,0 +1,49 @@
+{% extends 'layouts/layout.html' %} {% block body %}
+<div id="container-not-an-ad" class="media">
+  <div class="media-body">
+    <h1>Welcome to the Word Rating experiment!</h1>
+    <hr />
+    <div class="alert alert-warning">
+      <p>Study: <a href="#" id="ad-href">debug</a>.</p>
+      <p>Study: <a href="#" id="ad-href2">live (debug-id)</a>.</p>
+      <script type="text/javascript">
+        function makeid() {
+          var text = "";
+          var possible =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+          for (var i = 0; i < 5; i++)
+            text += possible.charAt(
+              Math.floor(Math.random() * possible.length)
+            );
+
+          return text;
+        }
+
+        var assignmentId = "debug" + makeid();
+        var hitId = "debug" + makeid();
+        var workerId = "debug" + makeid();
+        var href =
+          "/ad?assignmentId=" +
+          assignmentId +
+          "&hitId=" +
+          hitId +
+          "&workerId=" +
+          workerId +
+          "&mode=debug";
+        var href2 =
+          "/ad?assignmentId=" +
+          assignmentId +
+          "&hitId=" +
+          hitId +
+          "&workerId=" +
+          workerId +
+          "&mode=live";
+
+        document.getElementById("ad-href").setAttribute("href", href);
+        document.getElementById("ad-href2").setAttribute("href", href2);
+      </script>
+    </div>
+  </div>
+</div>
+{% endblock %}

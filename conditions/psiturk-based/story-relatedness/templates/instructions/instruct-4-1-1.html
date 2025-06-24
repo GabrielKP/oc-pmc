@@ -1,0 +1,68 @@
+<div id="container-instructions">
+  <h1>Phase 2: Word Rating</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <p>Below the presented word, you will see a scale between 1 and 7:</p>
+
+    <div class="instruction-list">
+      <p>
+        <b>1</b> - not at all related <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;&nbsp;...<br />
+        <b>7</b> - extremely related
+      </p>
+    </div>
+
+    <br />
+
+    <p>Rate the word by clicking on the corresponding number.</p>
+
+    <!-- <p>
+      You can also input your choice by pressing the associated key on your
+      keyboard. Both numpad and non-numpad numbers are okay.
+    </p>
+
+    <p>
+      <i>If you use the numpad, make sure it is set to the number mode.</i>
+    </p> -->
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      // delay next button
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="prev"
+          value="prev"
+          class="btn btn-primary btn-lg previous"
+        >
+          <span class="glyphicon glyphicon-arrow-left"></span> Previous
+        </button>
+      </div>
+      <div class="col-xs-8"></div>
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="next"
+          value="next"
+          class="btn btn-primary btn-lg continue"
+          disabled
+        >
+          Next <span class="glyphicon glyphicon-arrow-right"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,183 @@
+body {
+  padding: 0px;
+  margin: 0px;
+  background-color: white;
+  color: black;
+  font-weight: 300;
+  font-size: 13pt;
+}
+
+/* text styling */
+strong {
+  font-weight: 600;
+}
+
+.warm {
+  color: steelblue;
+  text-align: justify;
+}
+
+.cool {
+  color: #ccccff;
+}
+
+h1 {
+  margin-top: 0px;
+}
+
+/* these are all the same for now, but easy to modify individually */
+#container-not-an-ad,
+#container-error,
+#container-spr,
+#container-instructions,
+#container-final_page {
+  background: white;
+  margin: 0 auto;
+  width: 900px;
+  text-align: center;
+  font-size: 18pt;
+  line-height: 1.1em;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* instructions box */
+.instructions{
+  padding-top: 30px;
+  padding-left: 100px;
+  padding-right: 100px;
+  line-height: 1.5em;
+}
+
+/* instructions: instruct-1-1.html*/
+.instruction-list {
+  display: inline-block;
+  text-align: left;
+  max-width: 800px;
+}
+
+.instruction-list li:not(:last-child){
+  margin-bottom: 20px;
+}
+
+.instruction-list ol > li::marker {
+  font-weight: bold;
+}
+
+.grey-text {
+  color:#474747;
+}
+
+/* ad.html  - the ad that people view first */
+#adlogo {
+  width: 140px;
+  padding: 2px;
+  border: 1px solid #ccc;
+  margin-right: 1em;
+}
+
+/* consent.html - the consent form */
+#container-consent {
+  background: white;
+  margin: 30px;
+}
+
+#consent {
+  margin: 0 auto;
+  margin-top: 0;
+  width: 800px;
+  font-size: 100%;
+}
+
+.legal {
+  text-align: justify;
+  font-size: 11pt;
+  line-height: 1.1em;
+}
+
+#trial {
+  margin: 0 auto;
+  max-width: 900px;
+  text-align: center;
+}
+
+.question {
+  margin-bottom: 30px;
+}
+
+/* errors */
+#error img {
+  padding-right: 10px;
+  padding-top: 15px;
+}
+
+/* self paced reading */
+#sentence {
+  text-align: center;
+  font-size: 27pt;
+  width: 900px;
+  line-height: 1.5;
+  margin: 0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* word rating */
+#container-wr {
+  background: white;
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+#word {
+  text-align: center;
+  font-size: 30pt;
+  margin-top: 30pt;
+  margin-bottom: 30pt;
+}
+
+#hint {
+  color: darkgray;
+}
+
+.likert {
+  --likert-rows: 7;
+  display: inline-grid;
+  max-width: 1000px;
+  grid-auto-rows: 1fr;
+  gap: 1em;
+  grid-template-columns: repeat(var(--likert-rows), minmax(0, 1fr));
+}
+
+#question-example {
+  color:#757575;
+  line-height: 0px;
+  font-size: 12pt;
+}
+
+/* questionnaire */
+#container-questionnaire {
+  background: white;
+  /* font-size: 16pt;
+  line-height: 1.1em; */
+  margin: 30px;
+}
+
+#questionnaire {
+  margin: 0 auto;
+  margin-top: 0;
+  width: 90%;
+  max-width: 1400px;
+  min-width: 800px;
+  font-size: 100%;
+}
+
+.ctext {
+  text-align: center;
+}

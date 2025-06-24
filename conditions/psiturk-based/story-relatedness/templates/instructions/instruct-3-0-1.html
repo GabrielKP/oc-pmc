@@ -1,0 +1,57 @@
+<div id="container-instructions">
+  <h1>Phase 1: Read at your own pace.</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <p>During reading, you will see the following symbol:</p>
+
+    <br />
+
+    <p>***</p>
+
+    <br />
+
+    <p>
+      It indicates a paragraph break. Just as with sentences, press
+      <code>&lt;SPACE&gt;</code> to proceed.
+    </p>
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      // delay next button
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="prev"
+          value="prev"
+          class="btn btn-primary btn-lg previous"
+        >
+          <span class="glyphicon glyphicon-arrow-left"></span> Previous
+        </button>
+      </div>
+      <div class="col-xs-8"></div>
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="next"
+          value="next"
+          class="btn btn-primary btn-lg continue"
+          disabled
+        >
+          Next <span class="glyphicon glyphicon-arrow-right"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

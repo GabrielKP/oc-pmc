@@ -1,0 +1,68 @@
+<div id="container-instructions">
+  <h1>Phase 2: Word Rating</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <p>For each word, you will be asked for two ratings:</p>
+
+    <br />
+
+    <div class="instruction-list">
+      <ul>
+        <!-- <dt>&gt;</dt> -->
+        <li>
+          How related is the word to a <b>specific moment</b> of the story.
+          <p class="grey-text">
+            (e.g. the word reminds you of particular details in the story)
+          </p>
+        </li>
+        <!-- <dt>&gt;</dt> -->
+        <li>
+          How related is the word a <b>general theme or mood</b> of the story.
+          <p class="grey-text">
+            (e.g. you feel the word is related, even though not to a specific
+            moment)
+          </p>
+        </li>
+      </ul>
+    </div>
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      // delay next button
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="prev"
+          value="prev"
+          class="btn btn-primary btn-lg previous"
+        >
+          <span class="glyphicon glyphicon-arrow-left"></span> Previous
+        </button>
+      </div>
+      <div class="col-xs-8"></div>
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="next"
+          value="next"
+          class="btn btn-primary btn-lg continue"
+          disabled
+        >
+          Next <span class="glyphicon glyphicon-arrow-right"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

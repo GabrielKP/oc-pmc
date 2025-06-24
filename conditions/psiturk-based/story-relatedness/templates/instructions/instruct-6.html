@@ -1,0 +1,44 @@
+<div id="container-instructions">
+  <h1>Phase 4: Demographic Survey</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <p>Thank you for completing the demographic survey.</p>
+
+    <br />
+
+    <p>
+      In your browser, you will see a button that will redirect you to prolific.
+    </p>
+
+    <br />
+
+    <p>Press the button below to close this window.</p>
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY_SHORT);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <center>
+        <button
+          type="button"
+          id="next"
+          value="next"
+          class="btn btn-success btn-lg continue"
+          disabled
+        >
+          Close window
+        </button>
+      </center>
+    </div>
+  </div>
+</div>
