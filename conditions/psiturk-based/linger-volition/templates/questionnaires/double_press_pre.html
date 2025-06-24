@@ -1,0 +1,104 @@
+<div id="skip"></div>
+<div id="container-questionnaire">
+  <div id="questionnaire">
+    <p class="ctext">Please answer the following questions carefully.</p>
+    <hr />
+    <div class="instructions well">
+      <form id="double_press_food">
+        <!-- beginning of a question -->
+        <div class="row question">
+          <div class="col-md-8">
+            How reliably did you double press the space bar each time a
+            food-related thought entered your mind?
+          </div>
+          <div class="col-md-4">
+            <select
+              id="acc_button_press_food"
+              name="acc_button_press_food"
+              class="qselect qelement"
+            >
+              <option value="7">7 - Very reliably</option>
+              <option value="6">6</option>
+              <option value="5">5</option>
+              <option value="4">4</option>
+              <option value="3">3</option>
+              <option value="2">2</option>
+              <option value="1">1 - Not reliably at all</option>
+              <option value="" disabled selected>Select option</option>
+            </select>
+          </div>
+        </div>
+        <!-- end of a question -->
+        <hr />
+        <br />
+
+        <!-- beginning of a question -->
+        <div class="row question">
+          <div class="col-md-8">
+            How often did you forget to double press the space bar?
+          </div>
+          <div class="col-md-4">
+            <select
+              id="freq_button_press_food"
+              name="freq_button_press_food"
+              class="qselect qelement"
+            >
+              <option value="never">Never</option>
+              <option value="1to2">1 - 2 times</option>
+              <option value="3to5">3 - 5 times</option>
+              <option value="often">Often</option>
+              <option value="dontknow">Don't know</option>
+              <option value="" disabled selected>Select option</option>
+            </select>
+          </div>
+        </div>
+        <!-- end of a question -->
+        <hr />
+        <br />
+
+        <!-- beginning of a question -->
+        <div class="row question">
+          <div class="col-md-8">
+            If a single food-related thought persisted in your mind across
+            multiple words did you double press the space bar again?
+          </div>
+          <div class="col-md-4">
+            <select
+              id="repetition_button_press_food"
+              name="repetition_button_press_food"
+              class="qselect qelement"
+            >
+              <option value="Y">Yes</option>
+              <option value="N">No</option>
+              <option value="sometimes">Sometimes</option>
+              <option value="dontknow">Don't know</option>
+              <option value="" disabled selected>Select option</option>
+            </select>
+          </div>
+        </div>
+        <!-- end of a question -->
+      </form>
+    </div>
+
+    <hr />
+
+    <div id="warning"></div>
+
+    <div class="instructionsnav">
+      <div class="row">
+        <div class="col-xs-2"></div>
+        <div class="col-xs-7"></div>
+        <div class="col-xs-3">
+          <button
+            type="button"
+            id="submit"
+            value="next"
+            class="btn btn-primary btn-lg continue"
+          >
+            Next <span class="glyphicon glyphicon-arrow-right"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,56 @@
+<div id="container-instructions">
+  <h1>Story reading</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <p>
+      After reading each sentence, press the <b>ENTER</b> key to view the next
+      one.
+    </p>
+
+    <p>'***' indicates a paragraph break. Press <b>ENTER</b> to continue.</p>
+
+    <p>Please read the story naturally, at your own pace.</p>
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      // delay next button
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="prev"
+          value="prev"
+          class="btn btn-primary btn-lg previous"
+        >
+          <span class="glyphicon glyphicon-arrow-left"></span> Previous
+        </button>
+      </div>
+      <div class="col-xs-8">
+        <center>
+          <button
+            type="button"
+            id="next"
+            value="next"
+            class="btn btn-success btn-lg continue"
+            disabled
+          >
+            Begin
+            <span class="glyphicon glyphicon-arrow-right"></span>
+          </button>
+        </center>
+      </div>
+      <div class="col-xs-2"></div>
+    </div>
+  </div>
+</div>

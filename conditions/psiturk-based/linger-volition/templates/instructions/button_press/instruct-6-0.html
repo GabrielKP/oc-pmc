@@ -1,0 +1,46 @@
+<div id="container-instructions">
+  <h1>Story questions</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <p>You have completed <i>Phase 3</i> of the study.</p>
+
+    <p>Next, you will be asked questions about:</p>
+
+    <p><b>A)</b> Your personal experience while reading the story.</p>
+
+    <p><b>B)</b> The content of the story.</p>
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      // delay next button
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2"></div>
+      <div class="col-xs-8">
+        <center>
+          <button
+            type="button"
+            id="next"
+            value="next"
+            class="btn btn-success btn-lg continue"
+            disabled
+          >
+            Begin
+            <span class="glyphicon glyphicon-arrow-right"></span>
+          </button>
+        </center>
+      </div>
+      <div class="col-xs-2"></div>
+    </div>
+  </div>
+</div>

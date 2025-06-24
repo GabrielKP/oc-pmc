@@ -1,0 +1,39 @@
+<div id="container-instructions">
+  <h1>Word chain game</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <p>In <i>Phase 1</i>, you will play the <i>"word chain game"</i>.</p>
+
+    <p>Your goal is to type a sequence of words (i.e., <i>word chain</i>).</p>
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      // delay next button
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2"></div>
+      <div class="col-xs-8"></div>
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="next"
+          value="next"
+          class="btn btn-primary btn-lg continue"
+          disabled
+        >
+          Next <span class="glyphicon glyphicon-arrow-right"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

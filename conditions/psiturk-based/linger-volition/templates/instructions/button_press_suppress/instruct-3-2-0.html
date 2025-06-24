@@ -1,0 +1,57 @@
+<div id="container-instructions">
+  <h1>Word chain game</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <p>
+      <b>Rule 1:</b> When playing the game, concentrate on
+      <b>not thinking about food.</b>
+    </p>
+
+    <br />
+
+    <p>
+      <b>Rule 2:</b> If at any point a thought about food enters your mind,
+      immediately double-press the space bar. Then, resume the task and continue
+      trying to suppress any thoughts related to food.
+    </p>
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      // delay next button
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="prev"
+          value="prev"
+          class="btn btn-primary btn-lg previous"
+        >
+          <span class="glyphicon glyphicon-arrow-left"></span> Previous
+        </button>
+      </div>
+      <div class="col-xs-8"></div>
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="next"
+          value="next"
+          class="btn btn-primary btn-lg continue"
+          disabled
+        >
+          Next <span class="glyphicon glyphicon-arrow-right"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

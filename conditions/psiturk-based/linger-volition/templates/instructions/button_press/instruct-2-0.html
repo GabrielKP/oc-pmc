@@ -1,0 +1,55 @@
+<div id="container-instructions">
+  <h1>Study overview</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <div class="instruction-list">
+      <ul style="list-style-type: none">
+        <li><b>Phase 1</b> (~3 min): Create word chains.</li>
+        <li><b>Phase 2</b> (~10 min): Read a story.</li>
+        <li><b>Phase 3</b> (~3 min): Create word chains.</li>
+        <li><b>Phase 4</b> (~10 min): Answer questions about the story.</li>
+        <li><b>Phase 5</b> (~2 min): Answer questions about yourself.</li>
+      </ul>
+    </div>
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      // delay next button
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="prev"
+          value="prev"
+          class="btn btn-primary btn-lg previous"
+        >
+          <span class="glyphicon glyphicon-arrow-left"></span> Previous
+        </button>
+      </div>
+      <div class="col-xs-8"></div>
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="next"
+          value="next"
+          class="btn btn-primary btn-lg continue"
+          disabled
+        >
+          Next
+          <span class="glyphicon glyphicon-arrow-right"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

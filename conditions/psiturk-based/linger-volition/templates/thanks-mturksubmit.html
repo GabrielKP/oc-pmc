@@ -1,0 +1,38 @@
+{% extends 'layouts/layout.html' %} {% block head %} {{ super() }}
+<script src="/static/lib/jquery-min.js" type="text/javascript"></script>
+<script>
+  const PROLIFIC_URL =
+    "https://app.prolific.co/submissions/complete?cc=CGWO2HA6";
+
+  function complete_study() {
+    $(window).on("beforeunload", function () {
+      return "Your submission is in progress. Please do not close this window.";
+    });
+    $.ajax({
+      dataType: "json",
+      type: "GET",
+      url: "/worker_submitted?uniqueId={{ workerid }}:{{ assignmentid }}",
+      success: function (data) {
+        $(window).off("beforeunload");
+        window.location.replace(PROLIFIC_URL);
+      },
+    });
+  }
+</script>
+{% endblock %} {% block body %}
+<div id="container-not-an-ad">
+  <h1>Thank you for your participation</h1>
+  <hr />
+
+  <div class="well">
+    <p>You have completed the study!</p>
+
+    <br />
+
+    <p>Press “Complete study” to complete the study on prolific.</p>
+  </div>
+  <button class="btn btn-success btn-lg" onclick="complete_study();">
+    Complete study
+  </button>
+</div>
+{% endblock %}

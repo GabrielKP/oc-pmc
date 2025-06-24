@@ -1,0 +1,39 @@
+<div id="container-instructions">
+  <h1>Story reading</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <p>You have completed <i>Phase 1</i> of the study.</p>
+
+    <p>Next, you will read a story sentence by sentence.</p>
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      // delay next button
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY_SHORT);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2"></div>
+      <div class="col-xs-8"></div>
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="next"
+          value="next"
+          class="btn btn-primary btn-lg continue"
+          disabled
+        >
+          Next <span class="glyphicon glyphicon-arrow-right"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

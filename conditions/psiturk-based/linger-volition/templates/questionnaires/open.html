@@ -1,0 +1,129 @@
+<div id="skip"></div>
+<div id="container-questionnaire">
+  <div id="questionnaire">
+    <h1 class="ctext">Study complete</h1>
+    <br />
+    <p class="ctext">You are finished! Thank you for your contribution.</p>
+    <hr />
+    <div class="instructions well">
+      <form id="experience4">
+        <!-- beginning of a question -->
+        <br />
+        <div class="row question">
+          <div class="col-md-8">
+            Were you engaging in other tasks while performing this experiment
+            (e.g., listening to music, watching a video, browsing the internet)?
+            <br />If so, what were you doing? <br /><b>NOTE:</b> This is for
+            research purposes only. It will <b>NOT</b> affect your payment.
+          </div>
+          <div class="col-md-4">
+            <select
+              id="content_attention"
+              name="content_attention"
+              class="qselect qelement"
+            >
+              <option value="Y">Yes</option>
+              <option value="N">No</option>
+              <option value="" disabled selected>Select option</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Input box -->
+        <div>
+          <input
+            title="content_attention_text"
+            type="text"
+            id="content_attention_text"
+            size="60"
+            maxlength="400"
+            placeholder="Enter other tasks"
+            class="conditional_text qelement"
+            style="display: none"
+          />
+        </div>
+        <!-- end of a question -->
+        <hr />
+        <br />
+
+        <!-- beginning of a question -->
+        <div class="row question">
+          <div class="col-md-8">
+            <i>(Optional Question)</i> The instructions were clear and easy to
+            understand.
+          </div>
+          <div class="col-md-4">
+            <select
+              id="clarity_rating"
+              name="clarity_rating"
+              class="qselect qelement"
+            >
+              <option value="7">7 - Very much</option>
+              <option value="6">6</option>
+              <option value="5">5</option>
+              <option value="4">4</option>
+              <option value="3">3</option>
+              <option value="2">2</option>
+              <option value="1">1 - Not at all</option>
+              <option value="" disabled selected>Select option</option>
+            </select>
+          </div>
+        </div>
+        <!-- end of a question -->
+
+        <!-- Input box -->
+        <div>
+          <input
+            title="clarity_explanation"
+            type="text"
+            id="clarity_explanation"
+            size="60"
+            placeholder="What was unclear?"
+            class="qelement"
+            style="display: none"
+          />
+        </div>
+        <!-- end of a question -->
+
+        <!-- beginning of a question -->
+        <br />
+        <div class="row question">
+          <div class="col-sm-8">
+            <div class="form-group">
+              <label for="open_box">
+                <i>(Optional Question)</i> Any thoughts and comments you have
+                are highly appreciated.
+              </label>
+              <textarea
+                id="open_box"
+                name="open_box"
+                class="qelement form-control"
+              ></textarea>
+            </div>
+          </div>
+          <br />
+        </div>
+        <!-- end of a question -->
+      </form>
+    </div>
+
+    <hr />
+
+    <div id="warning"></div>
+
+    <div class="instructionsnav">
+      <div class="row">
+        <center>
+          <button
+            type="button"
+            id="submit"
+            value="next"
+            class="btn btn-success btn-lg continue"
+          >
+            Complete
+          </button>
+        </center>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,51 @@
+<div id="container-instructions">
+  <h1>Word chain game</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <p>Try not to <b>think</b> about the story you just read.</p>
+
+    <p>
+      If you happen to type a word related to the story, it's okay. Just
+      continue trying to suppress thoughts related to the story.
+    </p>
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      // delay next button
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="prev"
+          value="prev"
+          class="btn btn-primary btn-lg previous"
+        >
+          <span class="glyphicon glyphicon-arrow-left"></span> Previous
+        </button>
+      </div>
+      <div class="col-xs-8"></div>
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="next"
+          value="next"
+          class="btn btn-primary btn-lg continue"
+          disabled
+        >
+          Next <span class="glyphicon glyphicon-arrow-right"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

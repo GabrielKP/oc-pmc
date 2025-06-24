@@ -1,0 +1,101 @@
+<div id="container-instructions">
+  <h1>Word chain game</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <p>To practice, please double-press the space bar for five times.</p>
+
+    <span id="double-press-count">5</span>
+
+    <div id="double-space-feedback" style="opacity: 0">
+      <canvas id="canvas-circle" width="100" height="100"></canvas>
+    </div>
+
+    <script type="text/javascript">
+      // Variables
+      {
+        let doublePressCount = 0;
+        let last_spacebar_press = null;
+        const DOUBLE_PRESS_THRESHOLD = 1000;
+
+        // Draw circle
+        let canvas = document.getElementById("canvas-circle");
+        let ctx = canvas.getContext("2d");
+        ctx.beginPath();
+        ctx.arc(50, 30, 20, 0, 2 * Math.PI);
+        ctx.fillStyle = "lightblue";
+        ctx.fill();
+        // Register space bar to response handler
+        double_press_handler = function (key) {
+          key.preventDefault();
+          if (key.keyCode == 32) {
+            current_time = new Date().getTime();
+            // Only trigger within double press threshold
+            if (
+              last_spacebar_press != null &&
+              current_time - last_spacebar_press <= DOUBLE_PRESS_THRESHOLD
+            ) {
+              // update count
+              doublePressCount++;
+              console.log("Double press!");
+              // reset to avoid double counting
+              last_spacebar_press = null;
+              // visual cue
+
+              $("#double-space-feedback")
+                .stop(true)
+                .fadeTo(0, 1, () => {
+                  $("#double-space-feedback").fadeTo(1000, 0);
+                });
+              if (doublePressCount >= 5) {
+                // unbind response_handler
+                $("body").off("keydown", double_press_handler);
+                // Enable next button
+                $("#next").prop("disabled", false);
+                $("#double-press-count").text("Done!");
+              } else {
+                $("#double-press-count").text(5 - doublePressCount);
+              }
+            } else {
+              last_spacebar_press = current_time;
+            }
+          }
+        };
+        $("body").on("keydown", double_press_handler);
+      }
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="prev"
+          value="prev"
+          class="btn btn-primary btn-lg previous"
+        >
+          <span class="glyphicon glyphicon-arrow-left"></span> Previous
+        </button>
+      </div>
+      <div class="col-xs-8">
+        <center>
+          <button
+            type="button"
+            id="next"
+            value="next"
+            class="btn btn-success btn-lg continue"
+            disabled
+          >
+            Continue
+            <span class="glyphicon glyphicon-arrow-right"></span>
+          </button>
+        </center>
+      </div>
+      <div class="col-xs-2"></div>
+    </div>
+  </div>
+</div>

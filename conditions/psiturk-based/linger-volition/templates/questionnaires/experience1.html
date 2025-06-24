@@ -1,0 +1,199 @@
+<div id="skip"></div>
+<div id="container-questionnaire">
+  <div id="questionnaire">
+    <h1 class="ctext">Phase 2: Story questions (3/6)</h1>
+    <hr />
+    <div class="instructions well">
+      <form id="experience1">
+        <!-- beginning of a question -->
+        <br />
+        <div class="row question">
+          <div class="col-md-8">
+            The story you just read was written by Raymond Carver (<a
+              href="https://en.wikipedia.org/wiki/What_We_Talk_About_When_We_Talk_About_Love#%22So_Much_Water_So_Close_to_Home%22"
+              target="_blank"
+              >"So Much Water So Close To Home"</a
+            >). Did you know this story before the study?
+          </div>
+          <div class="col-md-4">
+            <select id="read_story" name="read_story" class="qselect qelement">
+              <option value="Y">Yes</option>
+              <option value="N">No</option>
+              <option value="" disabled selected>Select option</option>
+            </select>
+          </div>
+        </div>
+        <!-- end of a question -->
+
+        <!-- beginning of a question -->
+        <br />
+        <div class="row question">
+          <div class="col-md-8">
+            To what extent did you enjoy the story you read?
+          </div>
+          <div class="col-md-4">
+            <select id="read_enjoy" name="read_enjoy" class="qselect qelement">
+              <option value="7">7 - Very much</option>
+              <option value="6">6</option>
+              <option value="5">5</option>
+              <option value="4">4</option>
+              <option value="3">3</option>
+              <option value="2">2</option>
+              <option value="1">1 - Not at all</option>
+              <option value="" disabled selected>Select option</option>
+            </select>
+          </div>
+        </div>
+        <!-- end of a question -->
+
+        <!-- beginning of a question -->
+        <br />
+        <div class="row question">
+          <div class="col-md-8">
+            <div class="form-group">
+              <label for="wcg_strategy">
+                Please describe <i>any strategies</i> you may have used while
+                playing the <i>Word chain game </i>:
+              </label>
+              <textarea
+                id="wcg_strategy"
+                name="wcg_strategy"
+                class="qelement form-control"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        <!-- end of a question -->
+        <hr />
+        <br />
+
+        <!-- beginning of a question -->
+        <p>
+          To what degree did you use word meanings or word sounds (e.g., rhyme,
+          same first letter) to come up with words?
+        </p>
+
+        <br />
+
+        <div class="row question">
+          <div class="col-md-8">
+            <p><i>Word Chain game: First round</i></p>
+          </div>
+          <div class="col-md-4">
+            <select
+              id="wcg1_sound_meaning"
+              name="wcg1_sound_meaning"
+              class="qselect qelement"
+            >
+              <option value="meaning">
+                I used the meaning of words more often
+              </option>
+              <option value="sound">I used sound of words more often</option>
+              <option value="equal">I used both strategies equally</option>
+              <option value="none">None of the above</option>
+              <option value="" disabled selected>Select option</option>
+            </select>
+          </div>
+        </div>
+        <!-- end of a question -->
+
+        <!-- beginning of a question -->
+        <div class="row question">
+          <div class="col-md-8">
+            <p><i>Word chain game: Second round</i></p>
+          </div>
+          <div class="col-md-4">
+            <select
+              id="wcg2_sound_meaning"
+              name="wcg2_sound_meaning"
+              class="qselect qelement"
+            >
+              <option value="meaning">
+                I used the meaning of words more often
+              </option>
+              <option value="sound">I used sound of words more often</option>
+              <option value="equal">I used both strategies equally</option>
+              <option value="none">None of the above</option>
+              <option value="" disabled selected>Select option</option>
+            </select>
+          </div>
+        </div>
+        <!-- end of a question -->
+        <hr />
+        <br />
+
+        <!-- beginning of a question -->
+        <div class="suppress" style="display: none">
+          <p>What topics were you instructed to suppress thoughts about?</p>
+
+          <br />
+          <div class="row question">
+            <div class="col-md-8"><i>Word chain game: First round</i></div>
+            <div class="col-md-4">
+              <textarea
+                id="guess_suppress_1"
+                name="guess_suppress_1"
+                class="qelement"
+              ></textarea>
+            </div>
+          </div>
+          <!-- end of a question -->
+
+          <!-- beginning of a question -->
+          <div class="row question">
+            <div class="col-md-8"><i>Word chain game: Second round</i></div>
+            <div class="col-md-4">
+              <textarea
+                id="guess_suppress_2"
+                name="guess_suppress_2"
+                class="qelement"
+              ></textarea>
+            </div>
+          </div>
+          <!-- end of a question -->
+          <hr />
+          <br />
+        </div>
+
+        <!-- beginning of a question -->
+        <div class="row question">
+          <div class="col-md-8">
+            <div class="form-group">
+              <label for="guess_experiment">
+                Please describe what you think this experiment is trying to
+                measure:
+              </label>
+              <textarea
+                id="guess_experiment"
+                name="guess_experiment"
+                class="qelement form-control"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        <!-- end of a question -->
+      </form>
+    </div>
+
+    <hr />
+
+    <div id="warning"></div>
+
+    <div class="instructionsnav">
+      <div class="row">
+        <div class="col-xs-2"></div>
+        <div class="col-xs-7"></div>
+        <div class="col-xs-3">
+          <button
+            type="button"
+            id="submit"
+            value="next"
+            class="btn btn-primary btn-lg continue"
+          >
+            Next <span class="glyphicon glyphicon-arrow-right"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,13 @@
+{% extends 'layouts/layout.html' %} {% block head %} {{ super() }}
+<script>
+  window.opener.location.reload(true);
+  window.close();
+</script>
+{% endblock %} {% block body %}
+<h1>Returning to study window.</h1>
+<p>
+  You are being redirected back to the study window, which should refresh. If
+  you do not see the study submission form when you return, try refreshing the
+  page.
+</p>
+{% endblock %}

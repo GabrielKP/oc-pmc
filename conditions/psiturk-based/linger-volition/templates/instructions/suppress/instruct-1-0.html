@@ -1,0 +1,46 @@
+<div id="container-instructions">
+  <h1>General instructions</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <p>We are conducting this study for research purposes.</p>
+
+    <br />
+
+    <p>
+      To successfully complete the study,
+      <b>read and follow the instructions carefully.</b>
+    </p>
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      // delay next button
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2">
+        <!-- no previous button on first screen -->
+      </div>
+      <div class="col-xs-8"></div>
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="next"
+          value="next"
+          class="btn btn-primary btn-lg continue"
+          disabled
+        >
+          Next <span class="glyphicon glyphicon-arrow-right"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

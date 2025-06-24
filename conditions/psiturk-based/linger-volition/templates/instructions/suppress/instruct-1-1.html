@@ -1,0 +1,56 @@
+<div id="container-instructions">
+  <h1>General instructions</h1>
+
+  <hr />
+
+  <div class="instructions well">
+    <div class="instruction-list">
+      <ol>
+        <li>Set this window to full screen.</li>
+        <li>Turn off any music, audio, or video.</li>
+        <li>Maintain attention throughout this study (~28 min).</li>
+      </ol>
+      <!-- <p ><b>1.</b> Set this window to full screen.</p>
+      <p><b>2.</b> Turn off any music, audio, or video.</p>
+      <br />
+      <p><b>3.</b> Maintain attention throughout this study (~45 min)</p> -->
+    </div>
+
+    <script type="text/javascript">
+      //console.log(psiTurk.getInstructionIndicator())
+      // delay next button
+      setTimeout(function () {
+        $("#next").prop("disabled", false);
+      }, INSTRUCTION_DELAY);
+    </script>
+  </div>
+
+  <hr />
+
+  <div class="instructionsnav">
+    <div class="row">
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="prev"
+          value="prev"
+          class="btn btn-primary btn-lg previous"
+        >
+          <span class="glyphicon glyphicon-arrow-left"></span> Previous
+        </button>
+      </div>
+      <div class="col-xs-8"></div>
+      <div class="col-xs-2">
+        <button
+          type="button"
+          id="next"
+          value="next"
+          class="btn btn-primary btn-lg continue"
+          disabled
+        >
+          Next <span class="glyphicon glyphicon-arrow-right"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
