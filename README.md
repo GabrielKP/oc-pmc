@@ -70,12 +70,43 @@ Studies collected with psiturk (legacy code):
 ## Data
 
 The `data` folder contains all the data used for the analyses and figures.
-Each subfolder is usually arranged by story/condition/filename, whereas the filename indicates something about the data as well, for example it may be post/pre/practice to indicate which phase the data came from.
+Each subfolder is usually arranged by `story/condition/file` indicating the respective condition the data comes from.
 
 Following subfolders are included:
 
+* **corrections**: Contains three files:
+    * *processed.csv*: Tracks all words that have been checked, corrected or discarded.
+    * *discarded.csv*: Tracks all the words for which not a useful rating is possible due to ambiguity or lack of intellegibility.
+    * *corrections.csv*: Tracks all misspelled words and their corrections.
+* **double_press**: The food- (pre-reading) and story- (post-reading) thoughts participants reported in the button_press & button_press_suppress conditions. Every row represents a button-press. Note that participants may did not report any double-press at all, in which case they will not have a single row in the file.
+    * *participantID*: anonymized identifier for a participant, **it is only unique within a condition, but not across conditions!**
+    * *timestamp*: time double-press was registered since start of free association in ms.
+    * *current_double_press_count*: the count of double pressess, starting at 1.
+    * *time_since_last_word_start*: time double-press was registered since submission of the last word in ms.
+    * *word_count*: the count of words which were submitted before double-press since start of free association, the count starts at 0.
+    * *word_text*: the text currently typed in the textbox at the time of the double-press.
+    * *word_key_onsets*: the relative time of keys pressed since last submission of a word at the time of the double-press.
+    * *word_key_chars*: the characters of keys pressed since last submission of a word at the time of the double-press.
+    * *word_key_codes*: the javascript keycode for each pressed key (https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/keyCode) since the last submission of a word at the time of the double-press
+    * *word_double_press_count*: the number of double-presses that happened since the last submission of a word.
+* **external**: Empty folder to unzip glove embeddings to if used for rating.
+* **manual**: Categorizations of free-form responses by paid undergraduate research assistants. The rating keys can be found in the [readme](data/manual/fields/README.md).
+* **questionnaires**: Most of the questionnaire and experimental data. Each folder contains at least the following files:
+    * `summary.csv` (and sometimes separate in `questionnaire_data.csv`) - the most important fields:
+        * *participantID*: anonymized identifier for a participant, **it is only unique within a condition, but not across conditions!**
+        * *comp_prop*: comprehension score (see paper).
+        * *tran_prop*: transportation score (see paper).
+        * *linger_rating*: Self-reported lingering (see paper).
+        * *wcg_strategy*: Free form answer about which strategy participants used (see Supplementary Information).
+        * *volition*: Answer to volition question (see Supplementary Information).
+        * The file also contains the unix-timestamps for phase starts/ends, and the answers to all questions participants answered, these mostly match with the question id in the html/javascript condition code.
+    * `exclusions.csv`.
+        * *participantID*: anonymized identifier for a participant, **it is only unique within a condition, but not across conditions!**
+        * *exclusion*: Whether a participant was included or excluded.
+* **rated_words**: Story-relatedness ratings. The data is arranged by `approach/model/story/file`. Approach refers to broad approach (human or theme_similarity), model as the subcategory (e.g. moment or theme ratings), and story refers to the story to which the relatedness of the words was rated to.
 * **stories**: Plain-text files for the stories used in our conditions. The `provost_original` story was used as a familiarization story at the beginning of the interference_story_spr condition.
-* **time_words**: Participant generated words during free association. It contains following fields
+* **theme_words**: The theme words for each story used to compute theme similarity. A .txt file ordered by the frequency participants generated keywords in the keyword phase of the study. The data for carver_original comes from Bellana et al. 2022.
+* **time_words**: Participant generated words during free association. Each row represents a word a participant generated. It contains following columns:
     * *participantID*: anonymized identifier for a participant, **it is only unique within a condition, but not across conditions!**
     * *word_text*: the word a participant typed
     * *word_count*: the number of the word, starting at 0

@@ -1,0 +1,9 @@
+reason,count
+spr/char corr < 0.5,33
+comprehension general =< 0.25,3
+"time away (outliers total & wcg > 1, spr > 1)",7
+longer than 30.00s between words,14
+Outlier time between spr and wcg,16
+already read story,4
+word chain input masked by unicode characters,1
+comprehension catch < 0.5,1

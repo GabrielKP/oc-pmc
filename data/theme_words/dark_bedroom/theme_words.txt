@@ -1,0 +1,10 @@
+dim
+fan
+light
+remote
+wife
+darkness
+bedroom
+years
+lightbulb
+bulb
