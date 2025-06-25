@@ -1,0 +1,38 @@
+/* Setting max width for all content */
+.container:not(.wide) {
+  max-width: 1002px;
+}
+
+.wide {
+  max-width: 1410px;
+}
+
+/* Font size */
+#content {
+  font-size: 20px;
+}
+
+/* Reading font size */
+#sentence {
+  font-size: 24px;
+}
+
+/* InterferencePause */
+#pb {
+  -webkit-transition: none !important;
+  transition: none !important;
+}
+
+#spacebar-warning {
+  color: red;
+}
+
+/* Free Association Response Box */
+.responseBox {
+  background-color: transparent;
+  border: 1px solid;
+  height: 45px;
+  width: 210px;
+  resize: none;
+  text-align: center;
+}

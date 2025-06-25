@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<!-- Starts the experiment with a debug id -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Free Association</title>
+  </head>
+
+  <body>
+    <h1>Study Starting Page</h1>
+
+    <hr />
+
+    <p>Study: <a href="#" id="debug">debug (debug-id)</a>.</p>
+    <br />
+    <p>Study: <a href="#" id="test">test (live link with debug id)</a>.</p>
+
+    <hr />
+
+    <p>Study: <a href="#" id="local.debug">local debug (debug-id)</a>.</p>
+    <br />
+    <p>
+      Study:
+      <a href="#" id="local.test">local test (live link with debug id)</a>.
+    </p>
+
+    <hr />
+
+    <script type="text/javascript">
+      function makeid() {
+        var text = "";
+        var possible =
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+        for (var i = 0; i < 5; i++)
+          text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+        return text;
+      }
+
+      var debug_participantID = "debug.pid." + makeid();
+      var debug_study_id = "debug.study-id." + makeid();
+      var debug_session_id = "debug.session-id." + makeid();
+      var test_participantID = "test.pid." + makeid();
+      var test_study_id = "test.study-id." + makeid();
+      var test_session_id = "test.session-id." + makeid();
+      var href_debug =
+        "index.html?PROLIFIC_PID=" +
+        debug_participantID +
+        "&STUDY_ID=" +
+        debug_study_id +
+        "&SESSION_ID=" +
+        debug_session_id +
+        "&mode=debug";
+      var href_test =
+        "index.html?PROLIFIC_PID=" +
+        debug_participantID +
+        "&STUDY_ID=" +
+        test_study_id +
+        "&SESSION_ID=" +
+        test_session_id +
+        "&mode=live";
+
+      document.getElementById("debug").setAttribute("href", href_debug);
+      document.getElementById("test").setAttribute("href", href_debug);
+      document
+        .getElementById("local.test")
+        .setAttribute("href", href_test + "&local");
+      document
+        .getElementById("local.debug")
+        .setAttribute("href", href_debug + "&local");
+    </script>
+  </body>
+</html>

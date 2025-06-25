@@ -1,0 +1,186 @@
+<div class="container my-5">
+  <div class="card">
+    <h3 class="card-header text-center">Phase 2: Story questions (9/10)</h3>
+    <div class="instructions card-body">
+      <div class="card-text">
+        <div class="mx-5">
+          <p class="text-center py-3">
+            <i>
+              <b>
+                The following questions refer to the shorter story, presented in
+                <span style="color: purple">purple text</span> (i.e. the third
+                story you read).
+              </b>
+            </i>
+          </p>
+
+          <form class="mx-5 my-3">
+            <hr />
+            <br />
+
+            <!-- beginning of a question -->
+            <div class="row mb-2">
+              <div class="form-group">
+                <label for="interference_explanation" style="color: purple">
+                  How was your experience during the reading of the purple
+                  (third) story?
+                </label>
+                <textarea
+                  id="interference_explanation"
+                  name="interference_explanation"
+                  class="form-control collectible"
+                ></textarea>
+              </div>
+            </div>
+            <!-- end of a question -->
+
+            <br />
+            <hr />
+            <br />
+
+            <!-- beginning of a question -->
+            <div class="row">
+              <label
+                for="read_story_interference"
+                class="col-md-8"
+                style="color: purple"
+              >
+                The story you just read was written adapted from a reddit post.
+                Did you know this story before the study? (link provided at the
+                end)
+              </label>
+              <div class="col-md-4">
+                <select
+                  id="read_story_interference"
+                  name="read_story_interference"
+                  class="form-select form-select-lg collectible"
+                >
+                  <option value="Y">Yes</option>
+                  <option value="N">No</option>
+                  <option value="" disabled selected>Select option</option>
+                </select>
+              </div>
+            </div>
+            <!-- end of a question -->
+
+            <br />
+
+            <!-- beginning of a question -->
+            <div class="row">
+              <label
+                for="read_enjoy_interference"
+                class="col-md-8"
+                style="color: purple"
+              >
+                To what extent did you enjoy the last purple story you read?
+              </label>
+              <div class="col-md-4">
+                <select
+                  id="read_enjoy_interference"
+                  name="read_enjoy_interference"
+                  class="form-select form-select-lg collectible"
+                >
+                  <option value="7">7 - Very much</option>
+                  <option value="6">6</option>
+                  <option value="5">5</option>
+                  <option value="4">4</option>
+                  <option value="3">3</option>
+                  <option value="2">2</option>
+                  <option value="1">1 - Not at all</option>
+                  <option value="" disabled selected>Select option</option>
+                </select>
+              </div>
+            </div>
+            <!-- end of a question -->
+
+            <br />
+            <hr />
+            <br />
+
+            <!-- beginning of a question -->
+            <div class="row mb-4">
+              <label
+                for="linger_rating_interference"
+                class="col-md-8"
+                style="color: purple"
+              >
+                To what extent did the last purple story linger in your mind
+                after reading it?
+              </label>
+              <div class="col-md-4">
+                <select
+                  id="linger_rating_interference"
+                  name="linger_rating_interference"
+                  class="form-select form-select-lg collectible"
+                >
+                  <option value="7">7 - Very much</option>
+                  <option value="6">6</option>
+                  <option value="5">5</option>
+                  <option value="4">4</option>
+                  <option value="3">3</option>
+                  <option value="2">2</option>
+                  <option value="1">1 - Not at all</option>
+                  <option value="" disabled selected>Select option</option>
+                </select>
+              </div>
+            </div>
+            <!-- end of a question -->
+
+            <br />
+            <hr />
+            <br />
+
+            <!-- beginning of a question -->
+            <div class="row mb-4">
+              <label for="stories_distinct" class="col-md-8">
+                When did you realize that the second story (much longer and
+                presented in black) and the third story (short and presented in
+                purple) are distinct stories?
+              </label>
+              <div class="col-md-4">
+                <select
+                  id="stories_distinct"
+                  name="stories_distinct"
+                  class="form-select form-select-lg collectible"
+                >
+                  <option value="story-start">
+                    The moment the third story started.
+                  </option>
+                  <option value="story-during">During the third story.</option>
+                  <option value="wcg">During the word chain game.</option>
+                  <option value="questionnaires">
+                    During the previous questionnaires.
+                  </option>
+                  <option value="now">Right now</option>
+                  <option value="other">Other</option>
+                  <option value="" disabled selected>Select option</option>
+                </select>
+              </div>
+            </div>
+            <!-- end of a question -->
+
+            <br />
+            <hr />
+          </form>
+
+          <div id="warning"></div>
+
+          <div class="instructionsnav">
+            <div class="row">
+              <center>
+                <button
+                  type="button"
+                  id="submit"
+                  value="next"
+                  class="btn btn-success btn-lg continue"
+                >
+                  Continue
+                </button>
+              </center>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

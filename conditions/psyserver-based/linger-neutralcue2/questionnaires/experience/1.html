@@ -1,0 +1,166 @@
+<div class="container my-5">
+  <div class="card">
+    <h3 class="card-header text-center">Phase 2: Story questions (3/6)</h3>
+    <div class="instructions card-body">
+      <div class="card-text">
+        <form class="mt-5 mx-5">
+          <!-- beginning of a question -->
+          <div class="row">
+            <label for="read_story" class="col-md-8">
+              The story you just read was written by Raymond Carver ("So Much
+              Water So Close To Home"). Did you know this story before the
+              study?
+            </label>
+            <div class="col-md-4">
+              <select
+                id="read_story"
+                name="read_story"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="Y">Yes</option>
+                <option value="N">No</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+          <!-- end of a question -->
+
+          <!-- beginning of a question -->
+          <br />
+          <div class="row">
+            <label for="read_enjoy" class="col-md-8">
+              To what extent did you enjoy the story you read?
+            </label>
+            <div class="col-md-4">
+              <select
+                id="read_enjoy"
+                name="read_enjoy"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="7">7 - Very much</option>
+                <option value="6">6</option>
+                <option value="5">5</option>
+                <option value="4">4</option>
+                <option value="3">3</option>
+                <option value="2">2</option>
+                <option value="1">1 - Not at all</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+          <!-- end of a question -->
+
+          <!-- beginning of a question -->
+          <br />
+          <div class="row my-4">
+            <div class="col-md-12">
+              <div class="form-group">
+                <label for="wcg_strategy">
+                  Please describe <i>any strategies</i> you may have used while
+                  playing the <i>Word chain game </i>:
+                </label>
+                <textarea
+                  id="wcg_strategy"
+                  name="wcg_strategy"
+                  class="form-control collectible"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+          <!-- end of a question -->
+          <hr />
+          <br />
+
+          <!-- beginning of a question -->
+          <p>
+            To what degree did you use word meanings or word sounds (e.g.,
+            rhyme, same first letter) to come up with words?
+          </p>
+
+          <br />
+
+          <div class="row">
+            <label for="wcg1_sound_meaning" class="col-md-8">
+              <p><i>Word Chain game: First round</i></p>
+            </label>
+            <div class="col-md-4">
+              <select
+                id="wcg1_sound_meaning"
+                name="wcg1_sound_meaning"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="meaning">
+                  I used the meaning of words more often
+                </option>
+                <option value="sound">I used sound of words more often</option>
+                <option value="equal">I used both strategies equally</option>
+                <option value="none">None of the above</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+          <!-- end of a question -->
+
+          <!-- beginning of a question -->
+          <div class="row mt-2">
+            <label for="wcg2_sound_meaning" class="col-md-8">
+              <p><i>Word chain game: Second round</i></p>
+            </label>
+            <div class="col-md-4">
+              <select
+                id="wcg2_sound_meaning"
+                name="wcg2_sound_meaning"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="meaning">
+                  I used the meaning of words more often
+                </option>
+                <option value="sound">I used sound of words more often</option>
+                <option value="equal">I used both strategies equally</option>
+                <option value="none">None of the above</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+          <!-- end of a question -->
+          <hr />
+          <br />
+
+          <!-- beginning of a question -->
+          <div class="row mb-2">
+            <div class="form-group">
+              <label for="guess_experiment">
+                Please describe what you think this experiment is trying to
+                measure:
+              </label>
+              <textarea
+                id="guess_experiment"
+                name="guess_experiment"
+                class="form-control collectible"
+              ></textarea>
+            </div>
+          </div>
+          <!-- end of a question -->
+          <hr />
+        </form>
+
+        <div id="warning"></div>
+
+        <div class="instructionsnav">
+          <div class="row">
+            <center>
+              <button
+                type="button"
+                id="submit"
+                value="next"
+                class="btn btn-success btn-lg continue"
+              >
+                Continue
+              </button>
+            </center>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

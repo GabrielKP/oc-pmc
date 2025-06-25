@@ -1,0 +1,134 @@
+<div class="container my-5">
+  <div class="card">
+    <h3 class="card-header text-center">Phase 2: Story questions (5/6)</h3>
+    <div class="instructions card-body">
+      <div class="card-text">
+        <form class="mx-5 my-3">
+          <p class="text-center pb-3">
+            You indicated that the story lingered in your mind to some degree.
+          </p>
+          <hr />
+
+          <!-- beginning of a question -->
+          <br />
+          <div class="row question">
+            <label for="volition" class="col-md-8">
+              Were you <i>intentionally</i> reflecting on the story while
+              playing the word chain game? Or, did aspects of the story come to
+              mind <i>unintentionally</i>?
+            </label>
+            <div class="col-md-4">
+              <select
+                id="volition"
+                name="volition"
+                style="width: 90%"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="intentional">
+                  I was intentionally reflecting on the story I read
+                </option>
+                <option value="unintentional">
+                  The story I read came to mind unintentionally
+                </option>
+                <option value="both">Both</option>
+                <option value="neither">Neither</option>
+                <option value="dontknow">I don’t know</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+          <!-- end of a question -->
+
+          <!-- beginning of a question -->
+          <br />
+          <div class="row question">
+            <div class="form-group">
+              <label for="volition_explanation">
+                In a few sentences, please elaborate on your response above.
+                What did you experience?
+              </label>
+              <textarea
+                id="volition_explanation"
+                name="volition_explanation"
+                class="form-control collectible"
+              ></textarea>
+            </div>
+          </div>
+          <!-- end of a question -->
+          <br />
+          <hr />
+          <br />
+
+          <!-- beginning of a question -->
+          <div class="row question">
+            <label for="linger_rating_start" class="col-md-8">
+              To what extent did the story linger in your mind at the
+              <b>beginning</b> of the second word chain game?
+            </label>
+            <div class="col-md-4">
+              <select
+                id="linger_rating_start"
+                name="linger_rating_start"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="7">7 - Very much</option>
+                <option value="6">6</option>
+                <option value="5">5</option>
+                <option value="4">4</option>
+                <option value="3">3</option>
+                <option value="2">2</option>
+                <option value="1">1 - Not at all</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+          <!-- end of a question -->
+          <br />
+
+          <!-- beginning of a question -->
+          <div class="row question">
+            <label for="linger_rating_end" class="col-md-8">
+              To what extent did the story linger in your mind at the
+              <b>end</b> of the second word chain game?
+            </label>
+            <div class="col-md-4">
+              <select
+                id="linger_rating_end"
+                name="linger_rating_end"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="7">7 - Very much</option>
+                <option value="6">6</option>
+                <option value="5">5</option>
+                <option value="4">4</option>
+                <option value="3">3</option>
+                <option value="2">2</option>
+                <option value="1">1 - Not at all</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+          <!-- end of a question -->
+          <hr />
+        </form>
+
+        <div id="warning"></div>
+
+        <div class="instructionsnav">
+          <div class="row">
+            <center>
+              <button
+                type="button"
+                id="submit"
+                value="next"
+                class="btn btn-success btn-lg continue"
+              >
+                Continue
+              </button>
+            </center>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

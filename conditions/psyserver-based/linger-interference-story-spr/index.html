@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Free Association</title>
+    <link
+      rel="stylesheet"
+      href="static/css/bootstrap.min.css"
+      type="text/css"
+    />
+    <link rel="stylesheet" href="static/css/style.css" type="text/css" />
+    <link rel="icon" href="static/favicon.ico" />
+  </head>
+
+  <body>
+    <div id="container-skip-button" style="display: none">
+      <i>Debug version.</i>
+      <button
+        type="button"
+        id="skip"
+        value="skip"
+        class="btn btn-secondary btn-sm continue"
+      >
+        Skip to next stage
+        <span class="glyphicon glyphicon-arrow-right"></span>
+      </button>
+    </div>
+    <div
+      id="container-fullscreen-warning"
+      style="display: none"
+      class="container position-absolute top-50 start-50 translate-middle"
+    >
+      <h1>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="48"
+          height="48"
+          fill="red"
+          class="bi bi-exclamation-diamond-fill"
+          viewBox="0 0 16 16"
+        >
+          <path
+            d="M9.05.435c-.58-.58-1.52-.58-2.1 0L.436 6.95c-.58.58-.58 1.519 0 2.098l6.516 6.516c.58.58 1.519.58 2.098 0l6.516-6.516c.58-.58.58-1.519 0-2.098L9.05.435zM8 4c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995A.905.905 0 0 1 8 4m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"
+          />
+        </svg>
+        Set the screen to fullscreen to continue.
+      </h1>
+      <div class="instructionsnav pt-3">
+        <div class="row">
+          <div class="col-2"></div>
+          <div class="col-8">
+            <center>
+              <button
+                type="button"
+                id="fullscreen-warning"
+                value="fullscreen-warning"
+                class="btn btn-danger btn-lg continue"
+              >
+                Set to fullscreen
+                <span class="glyphicon glyphicon-arrow-right"></span>
+              </button>
+            </center>
+          </div>
+          <div class="col-2"></div>
+        </div>
+      </div>
+    </div>
+    <div id="content"></div>
+  </body>
+  <script src="static/lib/jquery-3.7.1.min.js"></script>
+  <script src="static/lib/bootstrap.bundle.min.js"></script>
+  <script data-main="static/js/main" src="static/lib/require.js"></script>
+</html>

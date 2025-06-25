@@ -1,0 +1,99 @@
+<div class="container my-5">
+  <div class="card">
+    <h3 class="card-header text-center">Phase 2: Story questions (10/10)</h3>
+    <div class="instructions card-body">
+      <div class="card-text">
+        <div class="mx-5">
+          <p class="text-center py-3">
+            <i>
+              <b>
+                The following questions refer to the second story, presented in
+                <span style="color: purple"
+                  >purple font and with a purple border</span
+                >.
+              </b>
+            </i>
+          </p>
+          <hr />
+        </div>
+
+        <form class="mx-5 my-3">
+          <p class="text-center py-3">
+            You indicated that the story lingered in your mind to some degree.
+          </p>
+
+          <hr />
+          <br />
+
+          <!-- beginning of a question -->
+          <div class="row question" style="color: purple">
+            <label for="volition_interference" class="col-md-8">
+              Were you <i>intentionally</i> reflecting on the purple story while
+              playing the word chain game? Or, did aspects of the story come to
+              mind <i>unintentionally</i>?
+            </label>
+            <div class="col-md-4">
+              <select
+                id="volition_interference"
+                name="volition_interference"
+                style="width: 90%"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="intentional">
+                  I was intentionally reflecting on the story I read
+                </option>
+                <option value="unintentional">
+                  The story I read came to mind unintentionally
+                </option>
+                <option value="both">Both</option>
+                <option value="neither">Neither</option>
+                <option value="dontknow">I don’t know</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+          <!-- end of a question -->
+
+          <br />
+          <br />
+
+          <!-- beginning of a question -->
+          <div class="row question">
+            <div class="form-group" style="color: purple">
+              <label for="volition_interference_explanation">
+                In a few sentences, please elaborate on your response above.
+                What did you experience?
+              </label>
+              <textarea
+                id="volition_interference_explanation"
+                name="volition_interference_explanation"
+                class="form-control collectible"
+              ></textarea>
+            </div>
+          </div>
+          <!-- end of a question -->
+
+          <br />
+          <hr />
+        </form>
+
+        <div id="warning"></div>
+
+        <div class="instructionsnav">
+          <div class="row">
+            <center>
+              <button
+                type="button"
+                id="submit"
+                value="next"
+                class="btn btn-success btn-lg continue"
+              >
+                Continue
+              </button>
+            </center>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

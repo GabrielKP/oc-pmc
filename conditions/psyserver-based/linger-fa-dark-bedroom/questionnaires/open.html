@@ -1,0 +1,133 @@
+<div class="container position-absolute top-50 start-50 translate-middle">
+  <div class="card">
+    <h3 class="card-header text-center">Thank you for your contribution.</h3>
+    <div class="instructions card-body">
+      <div class="card-text">
+        <form class="mt-5 mx-5">
+          <!-- beginning of a question -->
+          <div class="row mb-4">
+            <label for="content_attention" class="col-md-9 col-form-label-lg">
+              Were you engaging in other tasks while performing this experiment
+              (e.g., listening to music, watching a video, browsing the
+              internet)? <b>NOTE:</b> This is for research purposes only. It
+              will <b>NOT</b> affect your payment.
+            </label>
+            <div class="col-md-3">
+              <select
+                id="content_attention"
+                name="content_attention"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="Y">Yes</option>
+                <option value="N">No</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Input box -->
+          <div
+            id="content_attention_follow_up"
+            class="mb-4"
+            style="display: none"
+          >
+            <label for="content_attention_text" class="form-label"
+              >What where you doing?</label
+            >
+            <input
+              title="content_attention_text"
+              type="text"
+              id="content_attention_text"
+              class="form-control collectible"
+            />
+          </div>
+          <!-- end of a question -->
+          <hr />
+          <br />
+
+          <!-- Question: Clarity -->
+          <div class="row mb-4">
+            <label for="clarity_rating" class="col-md-9 col-form-label-lg">
+              <i>(Optional)</i> The instructions were clear and easy to
+              understand.
+            </label>
+            <div class="col-md-3">
+              <select
+                id="clarity_rating"
+                name="clarity_rating"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="7">7 - Very much</option>
+                <option value="6">6</option>
+                <option value="5">5</option>
+                <option value="4">4</option>
+                <option value="3">3</option>
+                <option value="2">2</option>
+                <option value="1">1 - Not at all</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+          <!-- End of Question -->
+
+          <!-- Question: Clarity follow-up conditional -->
+          <div id="clarity_follow_up" class="mb-4" style="display: none">
+            <label for="clarity_explanation">What was unclear?</label>
+            <input
+              title="clarity_explanation"
+              type="text"
+              id="clarity_explanation"
+              class="form-control collectible"
+            />
+          </div>
+          <!-- end of a question -->
+
+          <!-- Question: Open comments -->
+          <div class="mb-4">
+            <label for="open_box" class="form-label"
+              ><i>(Optional)</i> Any thoughts and comments you have are highly
+              appreciated.</label
+            >
+            <textarea
+              class="form-control form-control-lg collectible"
+              id="open_box"
+              rows="3"
+            ></textarea>
+          </div>
+          <!-- End of Question -->
+
+          <hr />
+
+          <div>
+            <i>
+              <p>
+                Link to the original reddit post the story was based on:
+                <a
+                  href="https://old.reddit.com/r/tifu/comments/ak2k64/tifu_by_living_in_a_dark_bedroom_for_6_years/"
+                  >https://old.reddit.com/r/tifu/comments/ak2k64/tifu_by_living_in_a_dark_bedroom_for_6_years/</a
+                >.
+              </p>
+            </i>
+          </div>
+        </form>
+      </div>
+
+      <div id="warning"></div>
+
+      <div class="instructionsnav">
+        <div class="row">
+          <center>
+            <button
+              type="button"
+              id="submit"
+              value="next"
+              class="btn btn-success btn-lg continue"
+            >
+              Continue
+            </button>
+          </center>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

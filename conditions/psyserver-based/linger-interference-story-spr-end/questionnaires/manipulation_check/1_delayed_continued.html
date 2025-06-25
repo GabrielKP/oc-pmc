@@ -1,0 +1,127 @@
+<div class="container my-5">
+  <div class="card">
+    <h3 class="card-header text-center">Phase 2: Story questions</h3>
+    <div class="instructions card-body">
+      <div class="card-text">
+        <div class="mx-5">
+          <p class="text-center py-3">
+            <i
+              >In this experiment you read Part 1 of a story (shown in black
+              font) and also
+              <span style="color: purple"
+                >Part 2 (shown in purple font, with a purple border)</span
+              >.</i
+            >
+          </p>
+          <p class="text-center">
+            To what extent do you agree with the following statements?
+          </p>
+          <hr />
+        </div>
+        <form class="my-5 mx-5">
+          <!-- beginning of a question -->
+          <div class="row">
+            <label for="integration_attempt" class="col-md-8">
+              While reading
+              <span style="color: purple">Part 2</span>
+              I was trying to relate it to Part 1.
+            </label>
+            <div class="col-md-4">
+              <select
+                id="integration_attempt"
+                name="integration_attempt"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="7">7 - Very much</option>
+                <option value="6">6</option>
+                <option value="5">5</option>
+                <option value="4">4</option>
+                <option value="3">3</option>
+                <option value="2">2</option>
+                <option value="1">1 - Not at all</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+          <!-- end of a question -->
+
+          <br />
+          <hr />
+          <br />
+
+          <!-- beginning of a question -->
+          <div class="row">
+            <label for="integration_success" class="col-md-8">
+              Part 1 and
+              <span style="color: purple">Part 2</span>
+              felt like they were part of the same story.
+            </label>
+            <div class="col-md-4">
+              <select
+                id="integration_success"
+                name="integration_success"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="7">7 - Very much</option>
+                <option value="6">6</option>
+                <option value="5">5</option>
+                <option value="4">4</option>
+                <option value="3">3</option>
+                <option value="2">2</option>
+                <option value="1">1 - Not at all</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+          <!-- end of a question -->
+
+          <br />
+          <hr />
+          <br />
+
+          <!-- beginning of a question -->
+          <div class="row mt-4">
+            <label for="manipulation_believed" class="col-md-8">
+              When I was told that
+              <span style="color: purple">Part 2</span>
+              would be a continuation of Part 1, I believed this instruction.
+            </label>
+            <div class="col-md-4">
+              <select
+                id="manipulation_believed"
+                name="manipulation_believed"
+                class="form-select form-select-lg collectible"
+              >
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+                <option value="forgot">Can't remember</option>
+                <option value="" disabled selected>Select option</option>
+              </select>
+            </div>
+          </div>
+          <!-- end of a question -->
+
+          <br />
+          <hr />
+        </form>
+
+        <div id="warning"></div>
+
+        <div class="instructionsnav my-4">
+          <div class="row">
+            <center>
+              <button
+                type="button"
+                id="submit"
+                value="next"
+                class="btn btn-success btn-lg continue"
+              >
+                Continue
+              </button>
+            </center>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

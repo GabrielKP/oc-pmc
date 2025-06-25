@@ -1,0 +1,106 @@
+<div class="container position-absolute top-50 start-50 translate-middle">
+  <!-- Resubmission card -->
+  <div
+    id="card-resubmit"
+    class="card text-center border-danger mb-3 w-70"
+    style="display: none"
+  >
+    <div class="instructions card-body">
+      <div class="card-text">
+        <h2 class="card-title text-danger">
+          There was an error submitting your data.
+        </h2>
+        Please resubmit the data.
+
+        <br />
+
+        <div class="instructionsnav pt-3">
+          <div class="row">
+            <div class="col-4"></div>
+            <div class="col-4">
+              <button
+                type="button"
+                id="resubmit"
+                value="resubmit"
+                class="btn btn-danger btn-lg continue"
+              >
+                Resubmit data
+                <span class="glyphicon glyphicon-arrow-right"></span>
+              </button>
+            </div>
+            <div class="col-4"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br />
+  <!-- Download data card -->
+  <div
+    id="card-download"
+    class="card text-center border-danger mb-3 w-70"
+    style="display: none"
+  >
+    <div class="instructions card-body">
+      <div class="card-text">
+        <h2 class="card-title text-danger">
+          There was an error submitting your data. Again.
+        </h2>
+        Please download the data and send it via email to
+        <a href="mailto:honeylabonline+experiments@gmail.com"
+          >honeylabonline+experiments@gmail.com</a
+        >
+
+        <br />
+
+        <div class="instructionsnav pt-3">
+          <div class="row">
+            <div class="col-4"></div>
+            <div class="col-4">
+              <button
+                type="button"
+                id="download"
+                value="download"
+                class="btn btn-danger btn-lg continue"
+              >
+                Download data
+                <span class="glyphicon glyphicon-arrow-right"></span>
+              </button>
+            </div>
+            <div class="col-4"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br />
+  <!-- Completed -->
+  <div id="card-complete" class="card text-center" style="display: none">
+    <div class="instructions card-body">
+      <div class="card-text">
+        <h2 class="card-title">You have completed the study.</h2>
+        Thank you for your participation.
+
+        <br />
+
+        <div class="instructionsnav pt-3">
+          <div class="row">
+            <div class="col-4"></div>
+            <div class="col-4">
+              <button
+                type="button"
+                id="complete"
+                value="complete"
+                class="btn btn-success btn-lg continue"
+              >
+                Complete on Prolific
+                <span class="glyphicon glyphicon-arrow-right"></span>
+              </button>
+            </div>
+            <div class="col-4"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
