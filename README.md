@@ -1,7 +1,7 @@
 
 <h1 align="center">Origin and Control of Persistent Mental Content</h1>
 
-<p align="center">Code & data accompanying the paper by Kressin Palacios, G, Bellana, B, and Honey, C. J.</p>
+<p align="center">Code & data accompanying the paper by Kressin Palacios, Bellana, and Honey</p>
 
 <p align="center">
 <a href="https://www.python.org/"><img alt="code" src="https://img.shields.io/badge/code-Python-blue?logo=Python"></a>
@@ -11,7 +11,10 @@
 
 ---
 
-This repository contains the code to generate the figures and analyses of the paper, the code to collect the experimental conditions, and the anonymized data.
+This repository contains:
+* [code to replicate](README.md#analyses--figures) the analyses and figures of the paper
+* [code to collect all experimental conditions](README.md#conditions)
+* [anonymized data](README.md#data).
 
 The repository uses different names for the conditions than the paper:
 
@@ -32,9 +35,9 @@ The repository uses different names for the conditions than the paper:
 | Pause                    | carver_original  | interference_pause                           |            no            |
 | End-cue + Pause          | carver_original  | interference_end_pause                       |            no            |
 | New story alone          | dark_bedroom     | neutralcue                                   |            no            |
-| -                        | carver_original  | neutralcue*                                  |           yes            |
+| -                        | carver_original  | neutralcue                                   |           yes            |
 
-*We include this condition here as we used data from it for outlier computation in the exclusion criteria of our early studies.
+
 
 ## Analyses & figures
 
@@ -67,7 +70,7 @@ python analysis/oc_pmc/manuscript.py
 ```
 
 
-#### Parameters for the `.env`
+### Parameters for the `.env`
 
 The `.env` allows you to change some key paths to certain dependencies:
 ```sh
@@ -76,17 +79,17 @@ DATA_DIR=/path/to/data_dir
 ```
 
 * `DATA_DIR`: Folder containing all data (default: `data`)
-* `OUTPUTS_DIR`: Folder were computing/rating outputs will be saved to, it makes sense that this is the same as DATA_DIR (default: `data`)
+* `OUTPUTS_DIR`: Folder were computing/rating outputs will be saved to, it makes sense that this is the same as `DATA_DIR` (default: `data`)
 * `STUDYPLOTS_DIR`: Folder where all plots will be saved to (default: `plots`)
 * `STUDYDATA_DIR`: Data folder of psyserver-based studies
-* `BELLANA_DIR`: Data repository from Bellana et al. https://www.nature.com/articles/s41467-022-32113-6
+* `BELLANA_DIR`: Data repository from Bellana et al. 2022 [https://osf.io/dmbx4/](https://osf.io/dmbx4/)
 
 
 
 ## Conditions
 
 
-### Psiturk-based: (story relatedness ratings, suppress, button_press, button_press_suppress)
+### Psiturk-based: story relatedness ratings, suppress, button_press, button_press_suppress
 
 The studies were hosted on AWS with [https://github.com/NYUCCL/psiTurk.git](psiTurk).
 
@@ -94,7 +97,7 @@ The studies were hosted on AWS with [https://github.com/NYUCCL/psiTurk.git](psiT
 * Linger volition (suppress/button_press/button_press_suppress): [readme](conditions/psiturk-based/linger-volition/README.md)
 
 
-### Psyserver-based: All other conditions
+### Psyserver-based: all other conditions
 
 The studies were hosted on AWS with [https://github.com/GabrielKP/psyserver](PsyServer).
 All studies are structured similarily: we used [bootstrap](https://getbootstrap.com/), [jquery](https://jquery.com/), and [requirejs](https://requirejs.org/).
@@ -177,29 +180,9 @@ Following subdirectories are included:
 * **time_words_legacy**: public word chain data from Bellana et al. 2022, needed when using the raw data import.
 * **words_to_rate**: the word files used to rate the words for story relatedness (for documentation purposes), updated versions can be created with [analysis/oc_pmc/export/words.py](analysis/oc_pmc/export/words.py)
 
-## Raw data
+### Raw data
 
 The raw data is not shared, however for completeness, here is how you would import it.
-
-### Psiturk-based studies
-
-
-
-### Psyserver-based studies
-
-### Bellana et al. (2022) data
-
-1. Download raw data from: [https://osf.io/dmbx4/](https://osf.io/dmbx4/)
-2. Unzip and place appropriately
-3. In `.env` set `BELLANA_DIR="</path/to/unzipped/directory>"`
-
-
-## Original repositories
-
-This repository is the merger of many private and public repositories used for the project:
-
-* Story relatedness ratings: https://github.com/GabrielKP/story-relatedness
-* Volition studies
 
 
 
