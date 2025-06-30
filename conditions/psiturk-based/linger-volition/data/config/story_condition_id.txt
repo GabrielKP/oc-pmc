@@ -1,0 +1,2 @@
+story_name
+conditiona_name
