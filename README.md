@@ -41,9 +41,45 @@ The repository uses different names for the conditions than the paper:
 ```sh
 git clone git@github.com:GabrielKP/oc-pmc.git
 cd oc-pmc
+
+conda create -n oc-pmc python=3.9
+conda activate oc-pmc
+
+# to replicate
+pip install .
+
+# for development
+poetry install
+
+# REPRODUCTION: this script will run all analyses and create all plots from the paper.
+python analysis/oc_pmc/main.py
+
+# Compute theme similarity
+python analysis/oc_pmc/rate_themesim.py
+
+# Run exclusion scripts
+python analysis/oc_pmc/exclusions/[condition_name].py
+
+# Import raw data:
+# - you need raw data (ours is not published to ensure anonymity)
+# - set the paths to the data folders in the .env
+python analysis/oc_pmc/manuscript.py
 ```
 
 
+#### Parameters for the `.env`
+
+The `.env` allows you to change some key paths to certain dependencies:
+```sh
+DATA_DIR=/path/to/data_dir
+# ...
+```
+
+* `DATA_DIR`: Folder containing all data (default: `data`)
+* `OUTPUTS_DIR`: Folder were computing/rating outputs will be saved to, it makes sense that this is the same as DATA_DIR (default: `data`)
+* `STUDYPLOTS_DIR`: Folder where all plots will be saved to (default: `plots`)
+* `STUDYDATA_DIR`: Data folder of psyserver-based studies
+* `BELLANA_DIR`: Data repository from Bellana et al. https://www.nature.com/articles/s41467-022-32113-6
 
 
 
@@ -74,14 +110,14 @@ You can simply upload the entire studies directory into the `studies` psyserver 
 
 #### Conditions:
 
-* dark_bedroom/neutralcue: [/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-fa-dark-bedroom](/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-fa-dark-bedroom)
-* interference_end_pause: [/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-interference-end-pause](/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-interference-end-pause)
-* interference_geometry: [/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-interference-geometry](/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-interference-geometry)
-* interference_pause: [/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-interference-pause](/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-interference-pause)
+* dark_bedroom/neutralcue: [conditions/psyserver-based/linger-fa-dark-bedroom](conditions/psyserver-based/linger-fa-dark-bedroom)
+* interference_end_pause: [conditions/psyserver-based/linger-interference-end-pause](conditions/psyserver-based/linger-interference-end-pause)
+* interference_geometry: [conditions/psyserver-based/linger-interference-geometry](conditions/psyserver-based/linger-interference-geometry)
+* interference_pause: [conditions/psyserver-based/linger-interference-pause](conditions/psyserver-based/linger-interference-pause)
 * interference_situation: [conditions/psyserver-based/linger-interference-situation](conditions/psyserver-based/linger-interference-situation)
-* interference_story_spr: [/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-interference-story-spr](/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-interference-story-spr)
-* interference_story_spr_end_continued/interference_story_spr_end_separated/interference_story_spr_end_delayed_continued: [/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-interference-story-spr-end](/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-interference-story-spr-end)
-* interference_tom: [/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-interference-tom](/Volumes/opt/oc-pmc/conditions/psyserver-based/linger-interference-tom)
+* interference_story_spr: [conditions/psyserver-based/linger-interference-story-spr](conditions/psyserver-based/linger-interference-story-spr)
+* interference_story_spr_end_continued/interference_story_spr_end_separated/interference_story_spr_end_delayed_continued: [conditions/psyserver-based/linger-interference-story-spr-end](conditions/psyserver-based/linger-interference-story-spr-end)
+* interference_tom: [conditions/psyserver-based/linger-interference-tom](conditions/psyserver-based/linger-interference-tom)
 * neutralcue2: [conditions/psyserver-based/linger-neutralcue2/](conditions/psyserver-based/linger-neutralcue2)
 
 
@@ -139,7 +175,7 @@ Following subdirectories are included:
     * *story_relatedness* (only some studies): mean 'moment' story relatedness - I recommend not using this value at it may be outdated, and just rerating each word.
 
 * **time_words_legacy**: public word chain data from Bellana et al. 2022, needed when using the raw data import.
-* **words_to_rate**: the word files used to rate the words for story relatedness (for documentation purposes), updated versions can be created with [analysis/ldet/export/words.py](analysis/ldet/export/words.py)
+* **words_to_rate**: the word files used to rate the words for story relatedness (for documentation purposes), updated versions can be created with [analysis/oc_pmc/export/words.py](analysis/oc_pmc/export/words.py)
 
 ## Raw data
 

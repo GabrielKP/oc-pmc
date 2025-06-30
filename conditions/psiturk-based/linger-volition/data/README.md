@@ -27,5 +27,5 @@ Contains config files for experiment:
 
 - `eventdatafiles.txt`: all data files in the root dir containing eventdata (e.g. `eventdata.csv`). One file, one line.
 - `trialdatafiles.txt`: all data files in the root dir containing trialdata (e.g. `trialdata.csv`, `trialdata2.csv`). One file, one line.
-- `story_condition_id.txt`: The first line, contains the story name and the second line the condition name. For automatic import with ldet.
+- `story_condition_id.txt`: The first line, contains the story name and the second line the condition name. For automatic import.
 - `studyIDs.txt`: prolific studyIDs for which data is extracted in trialdatafiles.txt. One studyID, one line.

@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import Dict, List
 
 
 def load_word_list_txt(path: str) -> List[str]:
@@ -26,7 +26,7 @@ def import_words_from_txt(config: Dict[str, str]):
 
 if __name__ == "__main__":
     config = {
-        "path_words": "/Volumes/opt/ldata/words_to_rate/carver_original/2024-04-22-final_words_to_rate-suppress-toronto.txt",
+        "path_words": "data/words_to_rate/carver_original/2024-04-22-final_words_to_rate-suppress-toronto.txt",  # noqa: E501
         "path_words_var": "static/js/words_var.js",
     }
     import_words_from_txt(config)
