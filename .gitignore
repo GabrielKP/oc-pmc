@@ -4,3 +4,5 @@ participants.db
 server.log
 .psiturk_history
 plots
+.cache
+.DS_Store
