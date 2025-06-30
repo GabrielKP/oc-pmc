@@ -1,7 +1,7 @@
 
 <h1 align="center">Origin and Control of Persistent Mental Content</h1>
 
-<p align="center">Code & data accompanying the paper by Kressin Palacios, G, Bellana, B, and Honey, C. J.</p>
+<p align="center">Code & data accompanying the paper by Kressin Palacios, G, Bellana, B, and Honey, CJ</p>
 
 <p align="center">
 <a href="https://www.python.org/"><img alt="code" src="https://img.shields.io/badge/code-Python-blue?logo=Python"></a>
@@ -11,11 +11,14 @@
 
 ---
 
-This repository contains the code to generate the figures and analyses of the paper, the code to collect the experimental conditions, and the anonymized data.
+This repository contains:
+* the code to generate the figures and analyses of the paper;
+* the experimental code used to collect the data;
+* the anonymized data.
 
-The repository uses different names for the conditions than the paper:
+The experimental conditions are named differently in the repository and in the manuscript:
 
-| Paper-name               | Repository:story | Repository:condition                         | from Bellana et al. 2022 |
+| Name in Paper             | Repository:stimulus | Repository:condition                         | from Bellana et al. 2022 |
 | ------------------------ | ---------------- | -------------------------------------------- | :----------------------: |
 | Intact                   | carver_original  | button_press                                 |            no            |
 | Scrambled                | carver_original  | word_scrambled                               |           yes            |
@@ -69,7 +72,7 @@ python analysis/oc_pmc/manuscript.py
 
 #### Parameters for the `.env`
 
-The `.env` allows you to change some key paths to certain dependencies:
+The `.env` allows you to change paths to some dependencies:
 ```sh
 DATA_DIR=/path/to/data_dir
 # ...
@@ -83,7 +86,7 @@ DATA_DIR=/path/to/data_dir
 
 
 
-## Conditions
+## Data Collection Platforms for Each Condition
 
 
 ### Psiturk-based: (story relatedness ratings, suppress, button_press, button_press_suppress)
@@ -124,10 +127,11 @@ You can simply upload the entire studies directory into the `studies` psyserver 
 
 ## Data
 
-The `data` directory contains all the data used for the analyses and figures.
+The `data` directory contains the experimental data.
+
 Each subdirectory is usually arranged by `story/condition/file` indicating the respective condition the data comes from.
 
-Following subdirectories are included:
+The following subdirectories are included:
 
 * **corrections**: Contains three files:
     * *processed.csv*: Tracks all words that have been checked, corrected or discarded.
