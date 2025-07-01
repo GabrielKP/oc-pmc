@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pandas as pd
 from scipy.stats import (
@@ -81,7 +81,11 @@ def stat_latex_str(
     )
 
 
-def test_two(config: Dict[str, Any]) -> float:
+def test_two(
+    config: Dict[str, Any],
+    data1_sr: Optional[pd.Series] = None,
+    data2_sr: Optional[pd.Series] = None,
+) -> float:
     measure: str = config["measure"]
     if config.get("name1") and config.get("name2"):
         console_comment = config.get("console_comment", "")
@@ -92,8 +96,9 @@ def test_two(config: Dict[str, Any]) -> float:
         )
     test_type = config.get("test_type", "anova")
 
-    data1_sr = load_per_participant_data({**config, **config["config1"]})[measure]
-    data2_sr = load_per_participant_data({**config, **config["config2"]})[measure]
+    if data1_sr is None or data2_sr is None:
+        data1_sr = load_per_participant_data({**config, **config["config1"]})[measure]
+        data2_sr = load_per_participant_data({**config, **config["config2"]})[measure]
 
     # drop nans
     data1_sr = data1_sr.dropna()
@@ -260,4 +265,8 @@ def test_two(config: Dict[str, Any]) -> float:
     if pvalue is None:
         raise ValueError("pvalue is None")
 
+    if config.get("return_cohens_d"):
+        if cohens_d is None:
+            raise ValueError("cohens d is None")
+        return cohens_d
     return pvalue
