@@ -1,7 +1,7 @@
 
 <h1 align="center">Origin and Control of Persistent Mental Content</h1>
 
-<p align="center">Code & data accompanying the paper by Kressin Palacios, Bellana, and Honey</p>
+<p align="center">Code & data accompanying the paper by Kressin Palacios, G, Bellana, B, and Honey, CJ</p>
 
 <p align="center">
 <a href="https://www.python.org/"><img alt="code" src="https://img.shields.io/badge/code-Python-blue?logo=Python"></a>
@@ -12,30 +12,30 @@
 ---
 
 This repository contains:
-* [code to replicate](README.md#analyses--figures) the analyses and figures of the paper
-* [code to collect all experimental conditions](README.md#conditions)
-* [anonymized data](README.md#data).
+* [the code to generate the figures and analyses of the paper;](README.md#analyses--figures)
+* [the experimental code used to collect the data;](README.md#conditions)
+* [the anonymized data.](README.md#data)
 
-The repository uses different names for the conditions than the paper:
+The experimental conditions are named differently in the repository and in the manuscript:
 
-| Paper-name               | Repository:story | Repository:condition                         | from Bellana et al. 2022 |
-| ------------------------ | ---------------- | -------------------------------------------- | :----------------------: |
-| Intact                   | carver_original  | button_press                                 |            no            |
-| Scrambled                | carver_original  | word_scrambled                               |           yes            |
-| Suppress                 | carver_original  | button_press_suppress                        |            no            |
-| Baseline                 | carver_original  | neutralcue2                                  |            no            |
-| Suppress-no-button-press | carver_original  | suppress                                     |            no            |
-| Situation                | carver_original  | interference_situation                       |            no            |
-| Tom                      | carver_original  | interference_tom                             |            no            |
-| New story                | carver_original  | interference_story_spr                       |            no            |
-| Geometry                 | carver_original  | interference_geometry                        |            no            |
-| Continued                | carver_original  | interference_story_spr_end_continued         |            no            |
-| Separated                | carver_original  | interference_story_spr_end_separated         |            no            |
-| Delayed-continued        | carver_original  | interference_story_spr_end_delayed_continued |            no            |
-| Pause                    | carver_original  | interference_pause                           |            no            |
-| End-cue + Pause          | carver_original  | interference_end_pause                       |            no            |
-| New story alone          | dark_bedroom     | neutralcue                                   |            no            |
-| -                        | carver_original  | neutralcue                                   |           yes            |
+| Name in Paper            | Repository:stimulus | Repository:condition                         | from Bellana et al. 2022 |
+| ------------------------ | ------------------- | -------------------------------------------- | :----------------------: |
+| Intact                   | carver_original     | button_press                                 |            no            |
+| Scrambled                | carver_original     | word_scrambled                               |           yes            |
+| Suppress                 | carver_original     | button_press_suppress                        |            no            |
+| Baseline                 | carver_original     | neutralcue2                                  |            no            |
+| Suppress-no-button-press | carver_original     | suppress                                     |            no            |
+| Situation                | carver_original     | interference_situation                       |            no            |
+| Tom                      | carver_original     | interference_tom                             |            no            |
+| New story                | carver_original     | interference_story_spr                       |            no            |
+| Geometry                 | carver_original     | interference_geometry                        |            no            |
+| Continued                | carver_original     | interference_story_spr_end_continued         |            no            |
+| Separated                | carver_original     | interference_story_spr_end_separated         |            no            |
+| Delayed-continued        | carver_original     | interference_story_spr_end_delayed_continued |            no            |
+| Pause                    | carver_original     | interference_pause                           |            no            |
+| End-cue + Pause          | carver_original     | interference_end_pause                       |            no            |
+| New story alone          | dark_bedroom        | neutralcue                                   |            no            |
+| -                        | carver_original     | neutralcue                                   |           yes            |
 
 
 
@@ -72,7 +72,7 @@ python analysis/oc_pmc/manuscript.py
 
 ### Parameters for the `.env`
 
-The `.env` allows you to change some key paths to certain dependencies:
+The `.env` allows you to change paths to some dependencies:
 ```sh
 DATA_DIR=/path/to/data_dir
 # ...
@@ -86,7 +86,7 @@ DATA_DIR=/path/to/data_dir
 
 
 
-## Conditions
+## Data Collection Platforms for Each Condition
 
 
 ### Psiturk-based: story relatedness ratings, suppress, button_press, button_press_suppress
@@ -127,10 +127,11 @@ You can simply upload the entire studies directory into the `studies` psyserver 
 
 ## Data
 
-The `data` directory contains all the data used for the analyses and figures.
+The `data` directory contains the experimental data.
+
 Each subdirectory is usually arranged by `story/condition/file` indicating the respective condition the data comes from.
 
-Following subdirectories are included:
+The following subdirectories are included:
 
 * **corrections**: Contains three files:
     * *processed.csv*: Tracks all words that have been checked, corrected or discarded.
