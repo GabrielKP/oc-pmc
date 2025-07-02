@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import plotly.io as pio
 from oc_pmc import DATA_DIR, RATEDWORDS_DIR, console
+from oc_pmc.analysis.demographic_stats import demographic_stats
 from oc_pmc.analysis.krippendorf_alpha import krippendorf_alpha
 from oc_pmc.analysis.word_stats import compute_word_stats
 from oc_pmc.load import (
@@ -127,20 +128,20 @@ ALL_STORIES_CONDITIONS_DCT_POST = {
     "carver_original": (
         "condition",
         {
+            "button_press": POST_NOFILTER,
+            "word_scrambled": POST_NOFILTER,
+            "button_press_suppress": POST_NOFILTER,
             "neutralcue2": POST_NOFILTER,
             "suppress": POST_NOFILTER,
-            "button_press": POST_NOFILTER,
-            "button_press_suppress": POST_NOFILTER,
             "interference_situation": POST_NOFILTER,
             "interference_tom": POST_NOFILTER,
-            "interference_geometry": POST_NOFILTER,
             "interference_story_spr": POST_NOFILTER,
-            "interference_pause": POST_NOFILTER,
-            "interference_end_pause": POST_NOFILTER,
+            "interference_geometry": POST_NOFILTER,
             "interference_story_spr_end_continued": POST_NOFILTER,
             "interference_story_spr_end_separated": POST_NOFILTER,
             "interference_story_spr_end_delayed_continued": POST_NOFILTER,
-            "word_scrambled": POST_TIMEFILTER,
+            "interference_pause": POST_NOFILTER,
+            "interference_end_pause": POST_NOFILTER,
         },
     ),
     "dark_bedroom": (
@@ -9000,6 +9001,51 @@ def suppl_thought_entries_mlm():
     )
 
 
+def suppl_demographic_stats():
+    console.print("\nDemographic stats - Methods", style="red bold")
+    demographic_stats(
+        {
+            "load_spec": ("story", ALL_STORIES_CONDITIONS_DCT_POST),
+            "aggregate_on": "position",
+            "name_mapping": NAME_MAPPING,
+            "latex": True,
+        }
+    )
+
+
+def submission_demographic_exclusion_stats():
+    console.print("\nReporting Summary", style="red bold")
+
+    console.print("\nGender stats", style="blue")
+    demographic_stats(
+        {
+            "load_spec": ("story", ALL_STORIES_CONDITIONS_DCT_POST),
+            "aggregate_on": "position",
+            "name_mapping": NAME_MAPPING,
+            "just_gender": True,
+        }
+    )
+
+    console.print("\nDemographic stats", style="blue")
+    demographic_stats(
+        {
+            "load_spec": ("story", ALL_STORIES_CONDITIONS_DCT_POST),
+            "aggregate_on": "position",
+            "name_mapping": NAME_MAPPING,
+        }
+    )
+
+    console.print("\nExclusions", style="blue")
+    demographic_stats(
+        {
+            "load_spec": ("story", ALL_STORIES_CONDITIONS_DCT_POST),
+            "aggregate_on": "position",
+            "name_mapping": NAME_MAPPING,
+            "just_exclusions": True,
+        }
+    )
+
+
 def main():
     # Results
     console.print("\n\nResults", style="red bold")
@@ -9024,6 +9070,7 @@ def main():
     console.print("\n\nMethods", style="red bold")
     suppl_methods_experiment_overview()
     suppl_methods_procedure_numbers()
+    suppl_demographic_stats()
 
     console.print("\n\nSupplementary Information", style="red bold")
     suppl_stats_words_generated()
@@ -9056,6 +9103,7 @@ def main():
     suppl_prereg_new_story()
     suppl_prereg_table_interference()
 
+    submission_demographic_exclusion_stats()
     # suppl_choice_baseline_fig_3_and_distribution_first_bin_aligned()
     print("\nDone")
 
