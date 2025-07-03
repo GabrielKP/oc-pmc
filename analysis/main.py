@@ -3508,7 +3508,7 @@ def suppl_plots_stats_volition():
             "min_bin_n": 1,
             "replace_columns": REPLACE_COLUMNS_VOLITION,
             # plot visual config
-            "x_title": "Time from start of of free association",
+            "x_title": "Time from start of free association",
             "y_title": "Story thoughts",
             "x_range": [0, 6.05],
             "y_range": STORY_THOUGHTS_Y_RANGE_SUPPL,
@@ -3588,7 +3588,7 @@ def suppl_plots_stats_volition():
             "min_bin_n": 1,
             "replace_columns": REPLACE_COLUMNS_VOLITION,
             # plot visual config
-            "x_title": "Time from start of of free association",
+            "x_title": "Time from start of free association",
             "y_title": "Story thoughts",
             "x_range": [0, 6.05],
             "y_range": STORY_THOUGHTS_Y_RANGE_SUPPL,
