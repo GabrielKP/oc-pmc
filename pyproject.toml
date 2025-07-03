@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "oc-pmc"
-version = "0.1.0"
+version = "1.0.0"
 description = "Code & data accompanying the paper by Kressin Palacios, G, Bellana, B, and Honey, C. J."
 authors = ["Gabriel Kressin Palacios <gkressi1@jhu.edu>"]
 license = "MIT"
