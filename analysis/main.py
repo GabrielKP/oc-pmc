@@ -238,9 +238,13 @@ NAME_MAPPING = {
     "interference_tom": "ToM",
     "interference_situation": "Situation",
     "interference_pause": "Pause",
+    "interference_end_pause": "End Cue + Pause",
     "interference_geometry": "Geometry",
     "interference_story_spr": "New Story",
     "neutralcue": "New Story Alone",
+    "interference_story_spr_end_continued": "Continued",
+    "interference_story_spr_end_separated": "Separated",
+    "interference_story_spr_end_delayed_continued": "Delayed Continued",
 }
 
 # https://plotly.com/python/marker-style/#custom-marker-symbols
