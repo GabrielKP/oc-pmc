@@ -7797,6 +7797,28 @@ def suppl_prereg_continued_separated_delayed_continued():
 
     test_difference_bin_means(
         {
+            "console_comment": ": aligned-by main-story: < 150s",
+            "name1": "Continued",
+            "name2": "Separated",
+            "config1": {"condition": "interference_story_spr_end_continued"},
+            "config2": {"condition": "interference_story_spr_end_separated"},
+            "position": "post",
+            "story": "carver_original",
+            "exclude": ("gt", "timestamp", 150000),
+            "align_timestamp": "reading_task_end",
+            "ratings": RATINGS_CARVER,
+            "measure": "story_relatedness",
+            # test config
+            "alternative": "greater",
+            "step": 30000,
+            "min_bin_n": 200,
+            "n_bootstrap": 5000,
+            "threshold": P_DISPLAY_THRESHOLD,
+        }
+    )
+
+    test_difference_bin_means(
+        {
             "console_comment": ": aligned-by main-story: > 150s",
             "name1": "Continued",
             "name2": "Separated",
@@ -7856,6 +7878,195 @@ def suppl_prereg_continued_separated_delayed_continued():
             "min_bin_n": 200,
             "n_bootstrap": 5000,
             "threshold": P_DISPLAY_THRESHOLD,
+        }
+    )
+
+    test_two(
+        {
+            "console_comment": ": aligned-by new-story: 0 - 30s",
+            "name1": "Continued",
+            "name2": "Delayed Continued",
+            "config1": {"condition": "interference_story_spr_end_continued"},
+            "config2": {"condition": "interference_story_spr_end_delayed_continued"},
+            "exclude": [
+                ("gte", "timestamp", 30000),
+            ],
+            "position": "post",
+            "story": "carver_original",
+            "align_timestamp": "interference_reading_testing_task_end",
+            "ratings": RATINGS_CARVER,
+            "measure": "story_relatedness",
+            "test_type": "mwu",
+            "alternative": "greater",
+            "threshold": P_DISPLAY_THRESHOLD,
+        }
+    )
+
+    plot_by_time_shifted(
+        {
+            "load_spec": (
+                "all",
+                {
+                    "all": (
+                        "story",
+                        {
+                            "carver_original": (
+                                "condition",
+                                {
+                                    "interference_story_spr_end_separated": POST_NOFILTER,  # noqa: E501
+                                    "interference_story_spr_end_continued": POST_NOFILTER,  # noqa: E501
+                                    "interference_story_spr_end_delayed_continued": POST_NOFILTER,  # noqa: E501
+                                },
+                            )
+                        },
+                    )
+                },
+            ),
+            "aggregate_on": "story",
+            "ratings": {
+                "approach": "human",
+                "model": "moment",
+                "story": "carver_original",
+                "file": "all.csv",
+            },
+            # plot data config
+            "mode": "relatedness",
+            "column": "story_relatedness",
+            "step": 30000,
+            "align_timestamp": "reading_task_end",
+            "min_bin_n": 300,
+            # plot visual config
+            "title": None,
+            "x_title": "Time from end of original story",
+            "y_title": "Story relatedness",
+            "x_title_font_size": 42,
+            "y_title_font_size": 42,
+            # "x_range": [0, 6.05],
+            "x_rangemode": "tozero",
+            "y_range": STORY_RELATEDNESS_Y_RANGE,
+            "x_tickfont": dict(size=36),
+            "y_tickfont": dict(size=36),
+            "x_ticks": "outside",
+            "x_skip_first_tick": True,
+            "x_tickwidth": 7,
+            "y_tickwidth": 7,
+            "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
+            "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
+            "axes_linecolor": AXES_COLOR_SUPPL,
+            "axes_tickcolor": AXES_COLOR_SUPPL,
+            "axes_linewidth": 7,
+            "marker_size": 24,
+            "line_width": 7,
+            "x_showgrid": False,
+            "y_showgrid": False,
+            "color_sequence": COLOR_SEQUENCE_ORDERED,
+            "category_orders": ORDER_CONDITIONS,
+            "x_title_font_color": COL1,
+            "y_title_font_color": COL1,
+            "font_color": COL1,
+            "bgcolor": COL_BG,
+            # plot misc config
+            "bootstrap": True,
+            "n_bootstrap": N_BOOTSTRAP,
+            "ci": 0.95,
+            "showlegend": True,
+            "legend": LEGEND_TOP_RIGHT,
+            "legend_name_mapping": LEGEND_NAME_MAPPING_POSITION,
+            "show": False,
+            "color": "condition",
+            "symbol": "position",
+            # plot save config
+            "study": STUDY_SUPPL,
+            "save": True,
+            "scale": 2,
+            "width": 1350,
+            "height": 660,
+            "filetype": FILETYPE,
+            "filepostfix": "suppl_delayed_continued_aligned_main",
+        }
+    )
+
+    plot_by_time_shifted(
+        {
+            "load_spec": (
+                "all",
+                {
+                    "all": (
+                        "story",
+                        {
+                            "carver_original": (
+                                "condition",
+                                {
+                                    "interference_story_spr_end_separated": POST_NOFILTER,  # noqa: E501
+                                    "interference_story_spr_end_continued": POST_NOFILTER,  # noqa: E501
+                                    "interference_story_spr_end_delayed_continued": POST_NOFILTER,  # noqa: E501
+                                },
+                            )
+                        },
+                    )
+                },
+            ),
+            "aggregate_on": "story",
+            "ratings": {
+                "approach": "human",
+                "model": "moment",
+                "story": "carver_original",
+                "file": "all.csv",
+            },
+            # plot data config
+            "mode": "relatedness",
+            "column": "story_relatedness",
+            "step": 30000,
+            "align_timestamp": "interference_reading_testing_task_end",
+            "min_bin_n": 300,
+            # plot visual config
+            "title": None,
+            "x_title": "Time from end of new story",
+            "y_title": "Story relatedness",
+            "x_title_font_size": 42,
+            "y_title_font_size": 42,
+            # "x_range": [0, 6.05],
+            "x_rangemode": "tozero",
+            "y_range": STORY_RELATEDNESS_Y_RANGE,
+            "x_tickfont": dict(size=36),
+            "y_tickfont": dict(size=36),
+            "x_ticks": "outside",
+            "x_skip_first_tick": True,
+            "x_tickwidth": 7,
+            "y_tickwidth": 7,
+            "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
+            "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
+            "axes_linecolor": AXES_COLOR_SUPPL,
+            "axes_tickcolor": AXES_COLOR_SUPPL,
+            "axes_linewidth": 7,
+            "marker_size": 24,
+            "line_width": 7,
+            "x_showgrid": False,
+            "y_showgrid": False,
+            "color_sequence": COLOR_SEQUENCE_ORDERED,
+            "category_orders": ORDER_CONDITIONS,
+            "x_title_font_color": COL1,
+            "y_title_font_color": COL1,
+            "font_color": COL1,
+            "bgcolor": COL_BG,
+            # plot misc config
+            "bootstrap": True,
+            "n_bootstrap": N_BOOTSTRAP,
+            "ci": 0.95,
+            "showlegend": True,
+            "legend": LEGEND_TOP_RIGHT,
+            "legend_name_mapping": LEGEND_NAME_MAPPING_POSITION,
+            "show": False,
+            "color": "condition",
+            "symbol": "position",
+            # plot save config
+            "study": STUDY_SUPPL,
+            "save": True,
+            "scale": 2,
+            "width": 1200,
+            "height": 660,
+            "filetype": FILETYPE,
+            "filepostfix": "suppl_delayed_continued_aligned_new",
         }
     )
 
