@@ -4,38 +4,45 @@
 <p align="center">Code & data accompanying the paper by Kressin Palacios, G, Bellana, B, and Honey, CJ</p>
 
 <p align="center">
-<a href="https://www.python.org/"><img alt="code" src="https://img.shields.io/badge/code-Python-blue?logo=Python"></a>
+<a href="https://www.python.org/"><img alt="code" src="https://img.shields.io/badge/code-Python%203.9-blue?logo=Python"></a>
 <a href="https://docs.astral.sh/ruff/"><img alt="Code style: Ruff" src="https://img.shields.io/badge/code%20style-Ruff-green?logo=Ruff"></a>
 <a href="https://python-poetry.org/"><img alt="packaging framwork: Poetry" src="https://img.shields.io/badge/packaging-Poetry-lightblue?logo=Poetry"></a>
+<a href="https://osf.io/preprints/psyarxiv/dghnf"><img alt="preprint server: PsyArXiv" src="https://img.shields.io/badge/preprint-PsyArXiv/dghnf-red?color=%23cf1e36"></a>
 </p>
 
 ---
 
 This repository contains:
-* [the code to generate the figures and analyses of the paper;](README.md#analyses--figures)
+* [the code to generate the figures and analyses of the manuscript;](README.md#analyses--figures)
 * [the experimental code used to collect the data;](README.md#conditions)
 * [the anonymized data.](README.md#data)
 
-The experimental conditions are named differently in the repository and in the manuscript:
+> [!NOTE]
+> Please do not hesitate to [Open an issue](https://github.com/GabrielKP/oc-pmc/issues/new) if you encounter errors during setup or [email me](mailto:gkressi1@jhu.edu) with questions!
 
-| Name in Paper            | Repository:stimulus | Repository:condition                         | from Bellana et al. 2022 |
-| ------------------------ | ------------------- | -------------------------------------------- | :----------------------: |
-| Intact                   | carver_original     | button_press                                 |            no            |
-| Scrambled                | carver_original     | word_scrambled                               |           yes            |
-| Suppress                 | carver_original     | button_press_suppress                        |            no            |
-| Baseline                 | carver_original     | neutralcue2                                  |            no            |
-| Suppress-no-button-press | carver_original     | suppress                                     |            no            |
-| Situation                | carver_original     | interference_situation                       |            no            |
-| Tom                      | carver_original     | interference_tom                             |            no            |
-| New story                | carver_original     | interference_story_spr                       |            no            |
-| Geometry                 | carver_original     | interference_geometry                        |            no            |
-| Continued                | carver_original     | interference_story_spr_end_continued         |            no            |
-| Separated                | carver_original     | interference_story_spr_end_separated         |            no            |
-| Delayed-continued        | carver_original     | interference_story_spr_end_delayed_continued |            no            |
-| Pause                    | carver_original     | interference_pause                           |            no            |
-| End-cue + Pause          | carver_original     | interference_end_pause                       |            no            |
-| New story alone          | dark_bedroom        | neutralcue                                   |            no            |
-| -                        | carver_original     | neutralcue                                   |           yes            |
+
+## Experimental conditions
+
+The experimental conditions have different names in the repository and the manuscript:
+
+| Name in paper            | Repository:stimulus | Repository:condition                         | from [Bellana et al. 2022](https://www.nature.com/articles/s41467-022-32113-6) |
+| ------------------------ | ------------------- | -------------------------------------------- | :----------------------------------------------------------------------------: |
+| Intact                   | carver_original     | button_press                                 |                                       no                                       |
+| Scrambled                | carver_original     | word_scrambled                               |                                      yes                                       |
+| Suppress                 | carver_original     | button_press_suppress                        |                                       no                                       |
+| Baseline                 | carver_original     | neutralcue2                                  |                                       no                                       |
+| Suppress No Button Press | carver_original     | suppress                                     |                                       no                                       |
+| Situation                | carver_original     | interference_situation                       |                                       no                                       |
+| Tom                      | carver_original     | interference_tom                             |                                       no                                       |
+| New Story                | carver_original     | interference_story_spr                       |                                       no                                       |
+| Geometry                 | carver_original     | interference_geometry                        |                                       no                                       |
+| Continued                | carver_original     | interference_story_spr_end_continued         |                                       no                                       |
+| Separated                | carver_original     | interference_story_spr_end_separated         |                                       no                                       |
+| Delayed Continued        | carver_original     | interference_story_spr_end_delayed_continued |                                       no                                       |
+| Pause                    | carver_original     | interference_pause                           |                                       no                                       |
+| End Cue + Pause          | carver_original     | interference_end_pause                       |                                       no                                       |
+| New Story Alone          | dark_bedroom        | neutralcue                                   |                                       no                                       |
+| -                        | carver_original     | neutralcue                                   |                                      yes                                       |
 
 
 
@@ -72,7 +79,7 @@ python analysis/oc_pmc/manuscript.py
 
 ### Parameters for the `.env`
 
-The `.env` allows you to change paths to some dependencies:
+Placing an `.env` in the root directory allows you to change paths to some dependencies:
 ```sh
 DATA_DIR=/path/to/data_dir
 # ...
@@ -88,10 +95,12 @@ DATA_DIR=/path/to/data_dir
 
 ## Data Collection Platforms for Each Condition
 
+Studies were collected in two different frameworks: psiTurk, and PsyServer.
+
 
 ### Psiturk-based: story relatedness ratings, suppress, button_press, button_press_suppress
 
-The studies were hosted on AWS with [https://github.com/NYUCCL/psiTurk.git](psiTurk).
+The studies were hosted on AWS with [psiTurk](https://github.com/NYUCCL/psiTurk.git).
 
 * Story relatedness ratings: [readme](conditions/psiturk-based/story-relatedness/README.md)
 * Linger volition (suppress/button_press/button_press_suppress): [readme](conditions/psiturk-based/linger-volition/README.md)
@@ -180,10 +189,6 @@ The following subdirectories are included:
 
 * **time_words_legacy**: public word chain data from Bellana et al. 2022, needed when using the raw data import.
 * **words_to_rate**: the word files used to rate the words for story relatedness (for documentation purposes), updated versions can be created with [analysis/oc_pmc/export/words.py](analysis/oc_pmc/export/words.py)
-
-### Raw data
-
-The raw data is not shared, however for completeness, here is how you would import it.
 
 
 
