@@ -18,7 +18,7 @@ This repository contains:
 * [the anonymized data.](README.md#data)
 
 > [!NOTE]
-> Please do not hesitate to [Open an issue](https://github.com/GabrielKP/oc-pmc/issues/new) if you encounter errors during setup or [email me](mailto:gkressi1@jhu.edu) with questions!
+> Please do not hesitate to [open an issue](https://github.com/GabrielKP/oc-pmc/issues/new) if you encounter problems during setup or write an [email](mailto:gkressi1@jhu.edu) with questions!
 
 
 ## Experimental conditions
