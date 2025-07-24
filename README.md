@@ -25,7 +25,7 @@ This repository contains:
 
 The experimental conditions have different names in the repository and the manuscript:
 
-| Name in paper            | Repository:stimulus | Repository:condition                         | from [Bellana et al. 2022](https://www.nature.com/articles/s41467-022-32113-6) |
+| Name in paper            | Repository:story    | Repository:condition                         | from [Bellana et al. 2022](https://www.nature.com/articles/s41467-022-32113-6) |
 | ------------------------ | ------------------- | -------------------------------------------- | :----------------------------------------------------------------------------: |
 | Intact                   | carver_original     | button_press                                 |                                       no                                       |
 | Scrambled                | carver_original     | word_scrambled                               |                                      yes                                       |
@@ -48,6 +48,7 @@ The experimental conditions have different names in the repository and the manus
 
 ## Analyses & figures
 
+_To run the code, you require a computer capable of running python 3.9._
 ```sh
 git clone git@github.com:GabrielKP/oc-pmc.git
 cd oc-pmc
@@ -62,14 +63,22 @@ pip install .
 # REPRODUCTION: this script will run all analyses and create all plots from the paper.
 python analysis/main.py
 ```
+_Installation time usually does not take longer than 5 minutes, but can vary based on your internet connection._
+_You should see analyses outputs in the terminal, and plots in the `plots` folder. The complete reproduction usually runs within 15 minutes._
 
 ### Other scripts
+
+To compute the theme similarity for words to the theme words of a story, you need to setup glove:
+1. Download glove embeddings [https://nlp.stanford.edu/projects/glove/](https://nlp.stanford.edu/projects/glove/) -  version: Wikipedia 2014 + Gigaword 5 (glove.6B.zip).
+2. Extract and place the file `glove.6B.300d.txt` into the directory [/Volumes/opt/oc-pmc/data/external/glove](/Volumes/opt/oc-pmc/data/external/glove).
+
 ```sh
 # Compute theme similarity
-python analysis/oc_pmc/rate_themesim.py
+python analysis/rate_themesim.py
+# to compute the theme similarity, you need to download and extract 
 
 # Run exclusion scripts
-python analysis/oc_pmc/exclusions/[condition_name].py
+python analysis/oc_pmc/exclusions/[condition].py
 
 # Import raw data:
 # - you need raw data (not published)
