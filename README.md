@@ -52,18 +52,19 @@ The experimental conditions have different names in the repository and the manus
 git clone git@github.com:GabrielKP/oc-pmc.git
 cd oc-pmc
 
-conda create -n oc-pmc python=3.9
+# (optional, but good practice)
+conda create -n oc-pmc python=3.9 -y
 conda activate oc-pmc
 
-# to replicate
+# to reproduce
 pip install .
 
-# for development
-poetry install
-
 # REPRODUCTION: this script will run all analyses and create all plots from the paper.
-python analysis/oc_pmc/main.py
+python analysis/main.py
+```
 
+### Other scripts
+```sh
 # Compute theme similarity
 python analysis/oc_pmc/rate_themesim.py
 
@@ -71,9 +72,18 @@ python analysis/oc_pmc/rate_themesim.py
 python analysis/oc_pmc/exclusions/[condition_name].py
 
 # Import raw data:
-# - you need raw data (ours is not published to ensure anonymity)
+# - you need raw data (not published)
 # - set the paths to the data folders in the .env
-python analysis/oc_pmc/manuscript.py
+python analysis/oc_pmc/do_import/manuscript.py
+```
+
+### For development
+
+Instead of `pip install .`, install and use [poetry](https://python-poetry.org/docs/#installation) for dependency management:
+```sh
+# use poetry instead of pip install .
+poetry install
+
 ```
 
 
