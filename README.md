@@ -50,6 +50,8 @@ The experimental conditions have different names in the repository and the manus
 
 _To run the code, you require a computer capable of running python 3.9._
 ```sh
+git clone https://github.com/GabrielKP/oc-pmc.git
+# or
 git clone git@github.com:GabrielKP/oc-pmc.git
 cd oc-pmc
 
