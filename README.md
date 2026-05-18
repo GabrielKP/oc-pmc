@@ -55,15 +55,10 @@ git clone https://github.com/GabrielKP/oc-pmc.git
 git clone git@github.com:GabrielKP/oc-pmc.git
 cd oc-pmc
 
-# (optional, but good practice)
-conda create -n oc-pmc python=3.9 -y
-conda activate oc-pmc
-
-# to reproduce
-pip install .
+# install uv (https://docs.astral.sh/uv/getting-started/installation/)
 
 # REPRODUCTION: this script will run all analyses and create all plots from the paper.
-python analysis/main.py
+uv run analysis/main.py
 ```
 _Installation time usually does not take longer than 5 minutes, but can vary based on your internet connection._
 _You should see analyses outputs in the terminal, and plots in the `plots` folder. The complete reproduction usually runs within 15 minutes._
@@ -72,29 +67,20 @@ _You should see analyses outputs in the terminal, and plots in the `plots` folde
 
 To compute the theme similarity for words to the theme words of a story, you need to setup glove:
 1. Download glove embeddings [https://nlp.stanford.edu/projects/glove/](https://nlp.stanford.edu/projects/glove/) -  version: Wikipedia 2014 + Gigaword 5 (glove.6B.zip).
-2. Extract and place the file `glove.6B.300d.txt` into the directory [/Volumes/opt/oc-pmc/data/external/glove](/Volumes/opt/oc-pmc/data/external/glove).
+2. Extract and place the file `glove.6B.300d.txt` into the directory [data/external/glove](data/external/glove).
 
 ```sh
 # Compute theme similarity
-python analysis/rate_themesim.py
-# to compute the theme similarity, you need to download and extract 
+uv run analysis/rate_themesim.py
+# to compute the theme similarity, you need to download and extract
 
 # Run exclusion scripts
-python analysis/oc_pmc/exclusions/[condition].py
+uv run analysis/oc_pmc/exclusions/[condition].py
 
 # Import raw data:
 # - you need raw data (not published)
 # - set the paths to the data folders in the .env
-python analysis/oc_pmc/do_import/manuscript.py
-```
-
-### For development
-
-Instead of `pip install .`, install and use [poetry](https://python-poetry.org/docs/#installation) for dependency management:
-```sh
-# use poetry instead of pip install .
-poetry install
-
+uv run analysis/oc_pmc/do_import/manuscript.py
 ```
 
 
