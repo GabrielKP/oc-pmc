@@ -150,7 +150,7 @@ Participants explicitly noting a change in emotion.
 
 Participants reported experiencing increased thoughts about something not related to the story. For example, food.
 
-- I tried to target specifically food related stuff at certain points as I was now allowed to do 
+- I tried to target specifically food related stuff at certain points as I was now allowed to do
 - i focused more on the food items that were mentioned in the story because i thought it was related to the first task
 
 ### other
