@@ -6,7 +6,7 @@
 <p align="center">
 <a href="https://www.python.org/"><img alt="code" src="https://img.shields.io/badge/code-Python%203.9-blue?logo=Python"></a>
 <a href="https://docs.astral.sh/ruff/"><img alt="Code style: Ruff" src="https://img.shields.io/badge/code%20style-Ruff-green?logo=Ruff"></a>
-<a href="https://python-poetry.org/"><img alt="packaging framwork: Poetry" src="https://img.shields.io/badge/packaging-Poetry-lightblue?logo=Poetry"></a>
+<a href="https://docs.astral.sh/uv/"><img alt="packaging: uv" src="https://img.shields.io/badge/packaging-uv-261230"></a>
 <a href="https://osf.io/preprints/psyarxiv/dghnf"><img alt="preprint server: PsyArXiv" src="https://img.shields.io/badge/preprint-PsyArXiv/dghnf-red?color=%23cf1e36"></a>
 </p>
 
