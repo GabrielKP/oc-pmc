@@ -1,7 +1,7 @@
 
 <h1 align="center">Origin and Control of Persistent Mental Content</h1>
 
-<p align="center">Code & data accompanying the paper by Kressin Palacios, G, Bellana, B, and Honey, CJ</p>
+<p align="center">Code & data accompanying the paper by Kressin Palacios, G, Ouyang, T, Bellana, B, and Honey, CJ</p>
 
 <p align="center">
 <a href="https://www.python.org/"><img alt="code" src="https://img.shields.io/badge/code-Python%203.9-blue?logo=Python"></a>

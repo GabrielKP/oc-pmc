@@ -1,10 +1,10 @@
 [project]
 name = "oc-pmc"
 version = "2.0.0a2"
-description = "Code & data accompanying the paper by Kressin Palacios, G, Ouyang, A, Bellana, B, and Honey, C. J."
+description = "Code & data accompanying the paper by Kressin Palacios, G, Ouyang, T, Bellana, B, and Honey, C. J."
 authors = [
     { name = "Gabriel Kressin Palacios", email = "gabriel.kressin@hotmail.de" },
-    { name = "Anya Ouyang", email = "oyts2002@gmail.com" }
+    { name = "Tianshu Ouyang", email = "oyts2002@gmail.com" }
 ]
 requires-python = ">=3.9,<4"
 readme = "README.md"
