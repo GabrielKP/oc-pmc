@@ -25,24 +25,28 @@ This repository contains:
 
 The experimental conditions have different names in the repository and the manuscript:
 
-| Name in paper            | Repository:story    | Repository:condition                         | from [Bellana et al. 2022](https://www.nature.com/articles/s41467-022-32113-6) |
-| ------------------------ | ------------------- | -------------------------------------------- | :----------------------------------------------------------------------------: |
-| Intact                   | carver_original     | button_press                                 |                                       no                                       |
-| Scrambled                | carver_original     | word_scrambled                               |                                      yes                                       |
-| Suppress                 | carver_original     | button_press_suppress                        |                                       no                                       |
-| Baseline                 | carver_original     | neutralcue2                                  |                                       no                                       |
-| Suppress No Button Press | carver_original     | suppress                                     |                                       no                                       |
-| Situation                | carver_original     | interference_situation                       |                                       no                                       |
-| Tom                      | carver_original     | interference_tom                             |                                       no                                       |
-| New Story                | carver_original     | interference_story_spr                       |                                       no                                       |
-| Geometry                 | carver_original     | interference_geometry                        |                                       no                                       |
-| Continued                | carver_original     | interference_story_spr_end_continued         |                                       no                                       |
-| Separated                | carver_original     | interference_story_spr_end_separated         |                                       no                                       |
-| Delayed Continued        | carver_original     | interference_story_spr_end_delayed_continued |                                       no                                       |
-| Pause                    | carver_original     | interference_pause                           |                                       no                                       |
-| End Cue + Pause          | carver_original     | interference_end_pause                       |                                       no                                       |
-| New Story Alone          | dark_bedroom        | neutralcue                                   |                                       no                                       |
-| -                        | carver_original     | neutralcue                                   |                                      yes                                       |
+| Name in paper             | Repository:story | Repository:condition                         | from [Bellana et al. 2022](https://www.nature.com/articles/s41467-022-32113-6) |
+| ------------------------- | ---------------- | -------------------------------------------- | :----------------------------------------------------------------------------: |
+| Intact                    | carver_original  | button_press                                 |                                       no                                       |
+| Scrambled                 | carver_original  | word_scrambled                               |                                      yes                                       |
+| Suppress                  | carver_original  | button_press_suppress                        |                                       no                                       |
+| Baseline                  | carver_original  | neutralcue2                                  |                                       no                                       |
+| Suppress No Button Press  | carver_original  | suppress                                     |                                       no                                       |
+| Situation                 | carver_original  | interference_situation                       |                                       no                                       |
+| Tom                       | carver_original  | interference_tom                             |                                       no                                       |
+| New Story                 | carver_original  | interference_story_spr                       |                                       no                                       |
+| Geometry                  | carver_original  | interference_geometry                        |                                       no                                       |
+| Continued                 | carver_original  | interference_story_spr_end_continued         |                                       no                                       |
+| Separated                 | carver_original  | interference_story_spr_end_separated         |                                       no                                       |
+| Delayed Continued         | carver_original  | interference_story_spr_end_delayed_continued |                                       no                                       |
+| Pause                     | carver_original  | interference_pause                           |                                       no                                       |
+| End Cue + Pause           | carver_original  | interference_end_pause                       |                                       no                                       |
+| New Story Alone           | dark_bedroom     | neutralcue                                   |                                       no                                       |
+| Multi Day: Day 1 - Carver | carver_original  | multi_day_carver_july                        |                                       no                                       |
+| Multi Day: Day 2 - July   | july_original    | multi_day_carver_july                        |                                       no                                       |
+| Multi Day: Day 1 - July   | july_original    | multi_day_july_carver                        |                                       no                                       |
+| Multi Day: Day 2 - Carver | carver_original  | multi_day_july_carver                        |                                       no                                       |
+| -                         | carver_original  | neutralcue                                   |                                      yes                                       |
 
 
 
@@ -65,6 +69,8 @@ _You should see analyses outputs in the terminal, and plots in the `plots` folde
 
 ### Other scripts
 
+#### Theme Similarity
+
 To compute the theme similarity for words to the theme words of a story, you need to setup glove:
 1. Download glove embeddings [https://nlp.stanford.edu/projects/glove/](https://nlp.stanford.edu/projects/glove/) -  version: Wikipedia 2014 + Gigaword 5 (glove.6B.zip).
 2. Extract and place the file `glove.6B.300d.txt` into the directory [data/external/glove](data/external/glove).
@@ -83,6 +89,17 @@ uv run analysis/oc_pmc/exclusions/[condition].py
 uv run analysis/oc_pmc/do_import/manuscript.py
 ```
 
+#### Semantic matching (word_position) and GPT-based Story relatedness
+
+For the following analyses you need to [setup an openai API key](https://developers.openai.com/api/docs/quickstart):
+* Compute semantic matches between specific words and sections of a story
+* LLM-based story-relatedness ratings.
+
+Obtain an API key, and place it in the `.env` file:
+```sh
+OPENAI_API_KEY="sk-something"
+```
+
 
 ### Parameters for the `.env`
 
@@ -97,6 +114,7 @@ DATA_DIR=/path/to/data_dir
 * `STUDYPLOTS_DIR`: Folder where all plots will be saved to (default: `plots`)
 * `STUDYDATA_DIR`: Data folder of psyserver-based studies
 * `BELLANA_DIR`: Data repository from Bellana et al. 2022 [https://osf.io/dmbx4/](https://osf.io/dmbx4/)
+* `OPENAI_API_KEY`: Openai API key.
 
 
 
@@ -138,6 +156,7 @@ You can simply upload the entire studies directory into the `studies` psyserver 
 * interference_story_spr_end_continued/interference_story_spr_end_separated/interference_story_spr_end_delayed_continued: [conditions/psyserver-based/linger-interference-story-spr-end](conditions/psyserver-based/linger-interference-story-spr-end)
 * interference_tom: [conditions/psyserver-based/linger-interference-tom](conditions/psyserver-based/linger-interference-tom)
 * neutralcue2: [conditions/psyserver-based/linger-neutralcue2/](conditions/psyserver-based/linger-neutralcue2)
+* multi-day: [conditions/psyserver-based/linger-multi-day](conditions/psyserver-based/linger-multi-day)
 
 
 
@@ -166,6 +185,7 @@ The following subdirectories are included:
     * *word_double_press_count*: the number of double-presses that happened since the last submission of a word.
 * **external**: Empty directory to unzip glove embeddings to if used for rating.
 * **manual**: Categorizations of free-form responses by paid undergraduate research assistants. The rating keys can be found in the [readme](data/manual/fields/README.md).
+* **prompts**: Prompts used for LLM-based story-relatedness and semantic matching (word_position). Prompts consist of two parts: an `input.txt`, and an `instructions.txt`.
 * **questionnaires**: Most of the questionnaire and experimental data. Each directory contains at least the following files:
     * `summary.csv` (and sometimes separate in `questionnaire_data.csv`) - the most important fields:
         * *participantID*: anonymized identifier for a participant, **it is only unique within a condition, but not across conditions!**
@@ -181,6 +201,7 @@ The following subdirectories are included:
 * **rated_words**: Story-relatedness ratings. The data is arranged by `approach/model/story/file`. Approach refers to broad approach (human or theme_similarity), model as the subcategory (e.g. moment or theme ratings), and story refers to the story to which the relatedness of the words was rated to.
 * **stories**: Plain-text files for the stories used in our conditions. The `provost_original` story was used as a familiarization story at the beginning of the interference_story_spr condition.
 * **theme_words**: The theme words for each story used to compute theme similarity. A .txt file ordered by the frequency participants generated keywords in the keyword phase of the study. The data for carver_original comes from Bellana et al. 2022.
+* **time_spr**: The time participants took to read each sentence during self-paced reading.
 * **time_words**: Participant generated words during free association. Each row represents a word a participant generated. It contains following columns:
     * *participantID*: anonymized identifier for a participant, **it is only unique within a condition, but not across conditions!**
     * *word_text*: the word a participant typed
@@ -195,6 +216,7 @@ The following subdirectories are included:
     * *story_relatedness* (only some studies): mean 'moment' story relatedness - I recommend not using this value at it may be outdated, and just rerating each word.
 
 * **time_words_legacy**: public word chain data from Bellana et al. 2022, needed when using the raw data import.
+* **word_position**: data matching each word to a separate story segment. Matches are determined either by `exact_match` or the `incontext` (in paper: semantic match) strategy. The data here is output of the [analysis/rate_word_position.py] script.
 * **words_to_rate**: the word files used to rate the words for story relatedness (for documentation purposes), updated versions can be created with [analysis/oc_pmc/export/words.py](analysis/oc_pmc/export/words.py)
 
 
