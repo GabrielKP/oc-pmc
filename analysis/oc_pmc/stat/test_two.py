@@ -73,9 +73,21 @@ def stat_latex_str(
     else:
         letter = "RPLC"
 
+    superscript1 = config.get("superscript1", None)
+    superscript2 = config.get("superscript2", None)
+
+    supscript_str1 = ""
+    if superscript1 is not None:
+        supscript_str1 = f"^\\text{{\\textit{{{superscript1}}}}}"
+    supscript_str2 = ""
+    if superscript2 is not None:
+        supscript_str2 = f"^\\text{{\\textit{{{superscript2}}}}}"
+
     return (
-        f"${letter}_\\text{{\\textit{{{name1}}}}}={round(data1_sr.mean(), 2)},\\;"
-        f"{letter}_\\text{{\\textit{{{name2}}}}}={round(data2_sr.mean(), 2)},\\;"
+        f"${letter}_\\text{{\\textit{{{name1}}}}}{supscript_str1}"
+        f"={round(data1_sr.mean(), 2)},\\;"
+        f"{letter}_\\text{{\\textit{{{name2}}}}}{supscript_str2}"
+        f"={round(data2_sr.mean(), 2)},\\;"
         f"${alternative}{test_type_str} = {round(statistic, 2)},\\;"
         f"{pvalue_str}$"
     )
@@ -83,11 +95,21 @@ def stat_latex_str(
 
 def test_two(
     config: Dict[str, Any],
-    data1_sr: Optional[pd.Series] = None,
-    data2_sr: Optional[pd.Series] = None,
+    data1_sr: Optional[pd.Series] = None,  # type: ignore
+    data2_sr: Optional[pd.Series] = None,  # type: ignore
+    verbose: bool = True,
 ) -> float:
-    measure: str = config["measure"]
-    if config.get("name1") and config.get("name2"):
+    measure = config["measure"]
+    if "config1" in config and "measure" in config["config1"]:
+        measure1 = config["config1"]["measure"]
+    else:
+        measure1 = measure
+    if "config2" in config and "measure" in config["config2"]:
+        measure2 = config["config2"]["measure"]
+    else:
+        measure2 = measure
+
+    if config.get("name1") and config.get("name2") and verbose:
         console_comment = config.get("console_comment", "")
         console.print(
             f"\n > Test_two: {measure}: {config['name1']} v"
@@ -97,8 +119,12 @@ def test_two(
     test_type = config.get("test_type", "anova")
 
     if data1_sr is None or data2_sr is None:
-        data1_sr = load_per_participant_data({**config, **config["config1"]})[measure]
-        data2_sr = load_per_participant_data({**config, **config["config2"]})[measure]
+        data1_sr: pd.Series = load_per_participant_data(
+            {**config, **config["config1"]}
+        ).loc[:, measure1]
+        data2_sr: pd.Series = load_per_participant_data(
+            {**config, **config["config2"]}
+        ).loc[:, measure2]
 
     # drop nans
     data1_sr = data1_sr.dropna()
@@ -110,10 +136,10 @@ def test_two(
         assert len(overlap) != 0
         if len(overlap) != len(data1_sr):
             print("Data 1 trimmed to ensure overlap.")
-        data1_sr = data1_sr[overlap]
+        data1_sr = data1_sr.loc[overlap]
         if len(overlap) != len(data2_sr):
             print("Data 2 trimmed to ensure overlap.")
-        data2_sr = data2_sr[overlap]
+        data2_sr = data2_sr.loc[overlap]
 
     # Assumptions
     if test_type in ["rel", "ind"]:
@@ -174,8 +200,9 @@ def test_two(
             trim=config.get("trim", 0),
         )
         pvalue, statistic, df = result.pvalue, result.statistic, result.df  # type: ignore
-        print(f"Independent t-test: {statistic:.3f}, p={pvalue:.5f}, df={df} {alt}")
-        print(stat_latex_str(config, data1_sr, data2_sr, statistic, pvalue, df=df))
+        if verbose:
+            print(f"Independent t-test: {statistic:.3f}, p={pvalue:.5f}, df={df} {alt}")
+            print(stat_latex_str(config, data1_sr, data2_sr, statistic, pvalue, df=df))
 
     stat_letter = "undefined"
     if "mwu" in test_type:
@@ -185,35 +212,39 @@ def test_two(
             alternative=config.get("alternative", "two-sided"),
         )
         statistic, pvalue = result.statistic, result.pvalue  # type: ignore
-        print(f"Mann-Whitney: U={statistic:3f}, p={pvalue:5f} {alt}")
-        print(stat_latex_str(config, data1_sr, data2_sr, statistic, pvalue, df=0))
+        if verbose:
+            print(f"Mann-Whitney: U={statistic:3f}, p={pvalue:5f} {alt}")
+            print(stat_latex_str(config, data1_sr, data2_sr, statistic, pvalue, df=0))
         stat_letter = "U"
     if "kw" in test_type:
         statistic, pvalue = kruskal(
             data1_sr, data2_sr, nan_policy=config.get("nan_policy", "propagate")
         )
-        print(f"Kruskal-Wallis H test: {statistic:3f}, p={pvalue:5f}")
-        print(stat_latex_str(config, data1_sr, data2_sr, statistic, pvalue, df=0))
+        if verbose:
+            print(f"Kruskal-Wallis H test: {statistic:3f}, p={pvalue:5f}")
+            print(stat_latex_str(config, data1_sr, data2_sr, statistic, pvalue, df=0))
         stat_letter = "H"
     if "wilcoxon" in test_type:
         result = wilcoxon(
             data1_sr, data2_sr, alternative=config.get("alternative", "two-sided")
         )
         statistic, pvalue = result.statistic, result.pvalue  # type: ignore
-        print(f"Wilcoxon signed rank test: W = {statistic:3f}, p={pvalue:5f} {alt}")  # type: ignore
-        print(stat_latex_str(config, data1_sr, data2_sr, statistic, pvalue, df=0))
+        if verbose:
+            print(f"Wilcoxon signed rank test: W = {statistic:3f}, p={pvalue:5f} {alt}")  # type: ignore
+            print(stat_latex_str(config, data1_sr, data2_sr, statistic, pvalue, df=0))
         stat_letter = "W"
 
-    print(
-        f"Data1 mean: {data1_sr.mean():.3f},"
-        f" sd = {data1_sr.std():.3f},"
-        f" n = {data1_sr.count()}"
-    )
-    print(
-        f"Data2 mean: {data2_sr.mean():.3f},"
-        f" sd = {data2_sr.std():.3f},"
-        f" n = {data2_sr.count()}"
-    )
+    if verbose:
+        print(
+            f"Data1 mean: {data1_sr.mean():.3f},"
+            f" sd = {data1_sr.std():.3f},"
+            f" n = {data1_sr.count()}"
+        )
+        print(
+            f"Data2 mean: {data2_sr.mean():.3f},"
+            f" sd = {data2_sr.std():.3f},"
+            f" n = {data2_sr.count()}"
+        )
 
     if not config.get("no_effect_size", False):
         if "paired" not in config:
@@ -225,8 +256,9 @@ def test_two(
         cohens_d_val = f"{round(cohens_d, 2):.2f}"
         if cohens_d < 1:
             cohens_d_val = cohens_d_val[1:]
-        print(f"Cohen's d: {cohens_d_val}{paired_str}")
-        print(f", Cohen's d$= {cohens_d_val}$")
+        if verbose:
+            print(f"Cohen's d: {cohens_d_val}{paired_str}")
+            print(f", Cohen's d$= {cohens_d_val}$")
 
     if config.get("print_for_table", False):
         assert pvalue is not None
@@ -264,6 +296,15 @@ def test_two(
 
     if pvalue is None:
         raise ValueError("pvalue is None")
+
+    if config.get("return_all"):
+        mean1 = round(data1_sr.mean(), 2)
+        sd1 = round(data1_sr.std(), 2)
+        n1 = data1_sr.count()
+        mean2 = round(data2_sr.mean(), 2)
+        sd2 = round(data2_sr.std(), 2)
+        n2 = data2_sr.count()
+        return pvalue, statistic, cohens_d, mean1, sd1, n1, mean2, sd2, n2  # type: ignore
 
     if config.get("return_cohens_d"):
         if cohens_d is None:

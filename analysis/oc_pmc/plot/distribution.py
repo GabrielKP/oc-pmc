@@ -19,7 +19,7 @@ def func_plot_distribution(
 ) -> None:
     measure = config["measure"]
     if config.get("within_participant_summary", False):
-        data_df = data_df.groupby("participantID").aggregate({measure: "mean"})
+        data_df = data_df.groupby("participantID").aggregate({measure: "mean"})  # type: ignore
     if config.get("group_column"):
         # the column which indicates which group a datapoint pertains to
         # 1. bin
@@ -80,6 +80,7 @@ def func_plot_distribution(
             tickmode="array",
             ticks=config.get("x_ticks", "outside"),
             tickwidth=config.get("x_tickwidth"),
+            ticklen=config.get("x_ticklen"),
             tickfont=config.get("x_tickfont", dict(size=32)),
             tickvals=config.get("x_tickvals"),
             ticktext=config.get("x_ticktext"),
@@ -100,6 +101,7 @@ def func_plot_distribution(
             range=config.get("y_range"),
             ticks=config.get("y_ticks", "outside"),
             tickwidth=config.get("y_tickwidth", 6),
+            ticklen=config.get("y_ticklen"),
             tickfont=config.get("y_tickfont", dict(size=32)),
             tickvals=config.get("y_tickvals"),
             ticktext=config.get("y_ticktext"),

@@ -4,18 +4,19 @@ from typing import Dict, List, Optional, Union
 import pandas as pd
 import plotly.express as px
 
-from oc_pmc import OUTPUTS_DIR, console, get_logger
+from oc_pmc import console, get_logger
+from oc_pmc.load import load_screen_recording_exclusions
 from oc_pmc.utils import check_make_dirs
 
 log = get_logger(__name__)
 
-BASEDIR = os.path.join(OUTPUTS_DIR, "plots/exclusions")
+BASEDIR = "outputs/plots/exclusions"
 
 
 def plot_exclusion_plots(
     config: Dict,
     to_exclude: pd.DataFrame,
-    to_compare: pd.DataFrame,
+    to_compare: Optional[pd.DataFrame],
     threshold: float,
     colname: str,
     title: str,
@@ -33,6 +34,9 @@ def plot_exclusion_plots(
     to_exclude["condition"] = condition_name
     data_df = to_exclude
     if not skip_to_compare:
+        assert to_compare is not None, (
+            f"to_compare must be provided if {skip_to_compare=}"
+        )
         to_compare["condition"] = config.get("to_compare_name", "to_compare")
         data_df = pd.concat([to_exclude, to_compare])
 
@@ -53,17 +57,22 @@ def plot_exclusion_plots(
     print("---")
 
 
+# I know that at this point all of these functions could have been the
+# same, clean function. But going back and refactoring may
+# break something unexpected, so I'll keep the mess.
 def exclusion_spr_char_abs(
     config: Dict,
     to_exclude: pd.DataFrame,
-    to_compare: pd.DataFrame,
+    to_compare: Optional[pd.DataFrame],
     threshold: float,
     interference: bool = False,
+    colname: str = "spr/char",
 ) -> pd.Series:
     """Returns bool Series marking all participants excluded with spr/char correlation
     being lower than the threshold."""
 
-    colname = "spr/char" if not interference else "spr/char_interference"
+    if interference:
+        colname = "spr/char_interference"
 
     print(f"Corr: {colname} threshold: {threshold}")
     spr_char_exclusion = to_exclude[colname] < threshold
@@ -80,6 +89,7 @@ def exclusion_spr_char_abs(
         "Distribution spr/char correlations. exclusions < threshold",
         15,
         [-0.5, 1],
+        skip_to_compare=to_compare is None,
     )
 
     return spr_char_exclusion
@@ -133,7 +143,7 @@ def exclusion_spr_wcg_break(
 def exclusion_spr_wcg_break_abs(
     config: Dict,
     to_exclude: pd.DataFrame,
-    to_compare: pd.DataFrame,
+    to_compare: Optional[pd.DataFrame],
     threshold: int,
     colname: str = "spr-wcg-break",
     skip_to_compare: bool = False,
@@ -165,14 +175,16 @@ def exclusion_spr_wcg_break_abs(
 def exclusion_reaction_time_abs(
     config: Dict,
     to_exclude: pd.DataFrame,
-    to_compare: pd.DataFrame,
+    to_compare: Optional[pd.DataFrame],
     threshold: Union[int, float],
+    colname: str = "rt_mean",
 ) -> pd.Series:
     """Returns bool Series marking all participants excluded with a mean
     reaction time higher than the threshold."""
-    print(f"rt_mean threshold: {threshold}")
-    rt_time_exclusion = to_exclude["rt_mean"] > threshold
-    rt_time_exclusion.name = "rt_mean"
+
+    print(f"{colname} threshold: {threshold}")
+    rt_time_exclusion = to_exclude[colname] > threshold
+    rt_time_exclusion.name = colname
     print(f"Exclusions: {rt_time_exclusion.sum()}")
 
     # plot distributions and threshold
@@ -181,10 +193,11 @@ def exclusion_reaction_time_abs(
         to_exclude,
         to_compare,
         threshold,
-        "rt_mean",
-        "Distribution rt_mean. threshold < exclusions",
+        colname,
+        f"Distribution {colname}. threshold < exclusions",
         40,
         x_range=[0, 25_000],
+        skip_to_compare=to_compare is None,
     )
 
     return rt_time_exclusion
@@ -207,16 +220,17 @@ def exclusion_reaction_time(
 def exclusion_reaction_time_max(
     config: Dict,
     to_exclude: pd.DataFrame,
-    to_compare: pd.DataFrame,
+    to_compare: Optional[pd.DataFrame],
     threshold: int = 20000,
     post_only: bool = False,
+    colname: str = "rt_max",
 ) -> pd.Series:
     """Returns bool Series marking all participants excluded with a max reaction
     time bigger than given threshold."""
-    print(f"rt_max threshold: {threshold}")
-    excl_col = "rt_max_post" if post_only else "rt_max"
-    rt_time_exclusion = to_exclude[excl_col] > threshold
-    rt_time_exclusion.name = excl_col
+    print(f"{colname} threshold: {threshold}")
+    colname = f"{colname}_post" if post_only else colname
+    rt_time_exclusion = to_exclude[colname] > threshold
+    rt_time_exclusion.name = colname
     print(f"Exclusions: {rt_time_exclusion.sum()}")
 
     # plot distributions and threshold
@@ -225,10 +239,11 @@ def exclusion_reaction_time_max(
         to_exclude,
         to_compare,
         threshold,
-        excl_col,
-        f"Distribution {excl_col}. threshold < exclusions",
+        colname,
+        f"Distribution {colname}. threshold < exclusions",
         40,
         x_range=[0, 100_000],
+        skip_to_compare=to_compare is None,
     )
 
     return rt_time_exclusion
@@ -237,14 +252,15 @@ def exclusion_reaction_time_max(
 def exclusion_comp_prop(
     config: Dict,
     to_exclude: pd.DataFrame,
-    to_compare: pd.DataFrame,
+    to_compare: Optional[pd.DataFrame],
     threshold: float = 0.25,
+    colname: str = "comp_prop",
 ) -> pd.Series:
     """Returns bool Series marking all participants excluded with a comprehension
     proportion of smaller/equal to given threshold."""
-    print(f"comp_prop threshold: {threshold}")
-    comp_prop_exclusion = to_exclude["comp_prop"] <= threshold
-    comp_prop_exclusion.name = "comp_prop"
+    print(f"{colname} threshold: {threshold}")
+    comp_prop_exclusion = to_exclude[colname] <= threshold
+    comp_prop_exclusion.name = colname
     print(f"Exclusions: {comp_prop_exclusion.sum()}")
 
     # plot distributions and threshold
@@ -253,10 +269,11 @@ def exclusion_comp_prop(
         to_exclude,
         to_compare,
         threshold,
-        "comp_prop",
-        "Distribution comp_prop. threshold <= Exclusions",
+        colname,
+        f"Distribution {colname}. threshold <= Exclusions",
         40,
         [0, 1],
+        skip_to_compare=to_compare is None,
     )
 
     return comp_prop_exclusion
@@ -265,18 +282,19 @@ def exclusion_comp_prop(
 def exclusion_catch_prop(
     config: Dict,
     to_exclude: pd.DataFrame,
-    to_compare: pd.DataFrame,
+    to_compare: Optional[pd.DataFrame],
     threshold: float = 0.5,
+    colname: str = "catch_prop",
 ) -> pd.Series:
     """Returns bool Series marking all participants excluded with a comprehension
     proportion of smaller to given threshold."""
-    print(f"catch_prop threshold: < {threshold}")
-    catch_prop_exclusion = to_exclude["catch_prop"] < threshold
+    print(f"{colname} threshold: < {threshold}")
+    catch_prop_exclusion = to_exclude[colname] < threshold
     print(f"Exclusions: {catch_prop_exclusion.sum()}")
 
-    print(f"Catch prop   0: {(to_exclude['catch_prop'] == 0).sum()}")
-    print(f"Catch prop 0.5: {(to_exclude['catch_prop'] == 0.5).sum()}")
-    print(f"Catch prop   1: {(to_exclude['catch_prop'] == 1).sum()}")
+    print(f"Catch prop   0: {(to_exclude[colname] == 0).sum()}")
+    print(f"Catch prop 0.5: {(to_exclude[colname] == 0.5).sum()}")
+    print(f"Catch prop   1: {(to_exclude[colname] == 1).sum()}")
     print("---")
 
     return catch_prop_exclusion
@@ -285,20 +303,21 @@ def exclusion_catch_prop(
 def exclusion_story_read(
     config: Dict,
     to_exclude: pd.DataFrame,
-    to_compare: pd.DataFrame,
+    to_compare: Optional[pd.DataFrame],
+    colname: str = "read_story",
 ) -> pd.Series:
     """Returns bool Series marking all participants excluded which already
     read the story."""
 
-    print("read_story threshold: Y")
-    comp_prop_exclusion = to_exclude["read_story"] == "Y"
+    print(f"{colname} threshold: Y")
+    comp_prop_exclusion = to_exclude[colname] == "Y"
     print(f"Exclusions: {comp_prop_exclusion.sum()}")
 
-    print(f"Story read Y: {comp_prop_exclusion.sum()}")
-    print(f"Story read N: {(~comp_prop_exclusion).sum()}")
+    print(f"{colname} Y: {comp_prop_exclusion.sum()}")
+    print(f"{colname} N: {(~comp_prop_exclusion).sum()}")
     print("---")
 
-    comp_prop_exclusion.name = "read_story"
+    comp_prop_exclusion.name = colname
     return comp_prop_exclusion
 
 
@@ -337,16 +356,17 @@ def exclusion_time_away(
 def exclusion_exp_time_away_abs(
     config: Dict,
     to_exclude: pd.DataFrame,
-    to_compare: pd.DataFrame,
+    to_compare: Optional[pd.DataFrame],
     threshold: float,
+    colname: str = "exp_time_away",
 ) -> pd.Series:
     """Returns bool Series marking all participants excluded which where longer away
     than threshold during main_experiment stages.
     """
 
-    print(f"exp_time threshold: {threshold}")
-    exp_time_exclusion = to_exclude["exp_time_away"] > threshold
-    exp_time_exclusion.name = "time_exp"
+    print(f"{colname} threshold: {threshold}")
+    exp_time_exclusion = to_exclude[colname] > threshold
+    exp_time_exclusion.name = colname
     print(f"Exclusions: {exp_time_exclusion.sum()}")
 
     # plot distributions and threshold
@@ -355,10 +375,11 @@ def exclusion_exp_time_away_abs(
         to_exclude,
         to_compare,
         threshold,
-        "exp_time_away",
-        "Distribution exp_time times. threshold < exclusions",
+        colname,
+        f"Distribution {colname}. threshold < exclusions",
         40,
         [0, 100_000],
+        skip_to_compare=to_compare is None,
     )
 
     return exp_time_exclusion
@@ -367,12 +388,13 @@ def exclusion_exp_time_away_abs(
 def exclusion_focusevents_abs(
     config: Dict,
     to_exclude: pd.DataFrame,
-    to_compare: pd.DataFrame,
+    to_compare: Optional[pd.DataFrame],
     threshold: Union[int, float],
+    colname: str = "focusevents",
 ) -> pd.Series:
-    print(f"focusevents threshold: {threshold}")
-    focus_events_exclusion = to_exclude["focusevents"] > threshold
-    focus_events_exclusion.name = "focusevents"
+    print(f"{colname} threshold: {threshold}")
+    focus_events_exclusion = to_exclude[colname] > threshold
+    focus_events_exclusion.name = colname
     print(f"Exclusions: {focus_events_exclusion.sum()}")
 
     # plot distributions and threshold
@@ -381,10 +403,11 @@ def exclusion_focusevents_abs(
         to_exclude,
         to_compare,
         threshold,
-        "focusevents",
-        "Distribution focusevents. threshold < exclusions",
+        colname,
+        f"Distribution {colname}. threshold < exclusions",
         40,
         [0, 50],
+        skip_to_compare=to_compare is None,
     )
 
     return focus_events_exclusion
@@ -409,14 +432,18 @@ def exclusion_focusevents(
 def exclusion_suppress_probe(
     config: Dict,
     to_exclude: pd.DataFrame,
-    to_compare: pd.DataFrame,
-    handle_typo: bool = False,
+    to_compare: Optional[pd.DataFrame],
+    check_for_food: bool = True,
+    colname_story: str = "guess_suppres_2",
 ) -> pd.Series:
     """Returns a bool series marking participants as excluded if they do not
     answer with "food" or "story" in the suppression probe.
 
-    handle_typo is for the 'suppress' condition, in which 'guess_suppress_2' was
-    mistakingly written as 'guess_suppres_2'
+    colname_story is for:
+        - 'suppress' condition, in which 'guess_suppress_2' was
+           mistakingly written as 'guess_suppres_2'
+        - 'multi_day' condition, in which the column was named
+          'check_suppress_topic_2'
     """
 
     print("suppress_probe threshold: 'food', 'story'")
@@ -430,9 +457,8 @@ def exclusion_suppress_probe(
             and "eat" not in probe
         )
 
-    def _not_story(row):
-        field_key = "guess_suppres_2" if handle_typo else "guess_suppress_2"
-        probe = str(row[field_key]).lower()
+    def _not_story(row, colname_story: str):
+        probe = str(row[colname_story]).lower()
         return (
             "story" not in probe
             and "stories" not in probe
@@ -442,12 +468,15 @@ def exclusion_suppress_probe(
             and "in the read" not in probe
         )
 
-    not_food = to_exclude.apply(_not_food, axis=1)
-    not_story = to_exclude.apply(_not_story, axis=1)
+    not_story = to_exclude.apply(_not_story, axis=1, colname_story=colname_story)
 
-    suppress_probe_exclusion = not_food | not_story
+    if check_for_food:
+        not_food = to_exclude.apply(_not_food, axis=1)
+        suppress_probe_exclusion = not_food | not_story
+        print((f"Not Food: {not_food.sum()}"))
+    else:
+        suppress_probe_exclusion = not_story
 
-    print((f"Not Food: {not_food.sum()}"))
     print((f"Not Story: {not_story.sum()}"))
     print(f"Excluded: {suppress_probe_exclusion.sum()}")
     print("---")
@@ -504,6 +533,23 @@ def exclusion_spr_time(
     )
     spr_time.name = "spr_time"
     return spr_time
+
+
+def exclusion_screen_recording(config: Dict, suffix: Optional[str] = None) -> pd.Series:
+    screen_recording_exclusions_df = load_screen_recording_exclusions(config)
+    screen_recording = screen_recording_exclusions_df["exclusion"] != "included"
+    if suffix is None:
+        suffix = ""
+    screen_recording.name = f"screen_recording{suffix}"
+
+    print(f"Screen recording exclusions | {config['story']} | {config['condition']}:")
+    reasons_and_counts = screen_recording_exclusions_df.loc[
+        screen_recording, "reason"
+    ].value_counts()
+    print(f"Total: {sum(screen_recording)}")
+    print(reasons_and_counts, end="\n---\n")
+
+    return screen_recording
 
 
 def print_stage_times(pID_stage_times: pd.DataFrame):

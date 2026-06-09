@@ -47,9 +47,9 @@ def get_comp_prop_carver(
         # check for correctness
         answer_df[question] = answer_df["answer"] == correct_answer
         # remove duplicate indices
-        answer_df = answer_df[~answer_df.index.duplicated(keep="last")]
+        answer_df = answer_df[~answer_df.index.duplicated(keep="last")]  # type: ignore
 
-        answers_dct[kind].append(answer_df[[question]])
+        answers_dct[kind].append(answer_df[[question]])  # type: ignore
 
     pID_catch = answers_dct["catch"][0].join(answers_dct["catch"][1:])  # type: ignore
     pID_general = answers_dct["general"][0].join(answers_dct["general"][1:])  # type: ignore
@@ -93,9 +93,9 @@ def compute_comp_prop(
         # check for correctness
         answer_df[question] = answer_df["answer"] == correct_answer
         # remove duplicate indices
-        answer_df = answer_df[~answer_df.index.duplicated(keep="last")]
+        answer_df = answer_df[~answer_df.index.duplicated(keep="last")]  # type: ignore
 
-        answers_dct[kind].append(answer_df[[question]])
+        answers_dct[kind].append(answer_df[[question]])  # type: ignore
 
     pID_questionnaire = answers_dct["general"][0].join(answers_dct["general"][1:])  # type: ignore
 
@@ -186,6 +186,45 @@ def get_comp_prop_dark_bedroom(
     return compute_comp_prop(pIDtrialdata, detailed, solutions)
 
 
+def july_solutions() -> List[Tuple[str, str, str]]:
+    return [
+        ("comp_Q1", "1", "general"),
+        ("comp_Q2", "1", "specific"),
+        ("comp_Q3", "3", "general"),
+        ("comp_Q4", "4", "specific"),
+        ("comp_Q5", "2", "general"),
+        ("comp_Q6", "1", "specific"),
+        ("comp_Q7", "1", "catch"),
+        ("comp_Q8", "3", "specific"),
+        ("comp_Q9", "4", "general"),
+        ("comp_Q10", "4", "general"),
+        ("comp_Q11", "2", "specific"),
+        ("comp_Q12", "1", "general"),
+        ("comp_Q13", "4", "general"),
+        ("comp_Q14", "4", "specific"),
+        ("comp_Q15", "2", "specific"),
+        ("comp_Q16", "1", "general"),
+        ("comp_Q17", "2", "general"),
+        ("comp_Q18", "2", "specific"),
+        ("comp_Q19", "3", "specific"),
+        ("comp_Q20", "3", "specific"),
+        ("comp_Q21", "4", "general"),
+        ("comp_Q22", "2", "general"),
+        ("comp_Q23", "3", "specific"),
+        ("comp_Q24", "2", "catch"),
+        ("comp_Q25", "3", "general"),
+        ("comp_Q26", "1", "specific"),
+    ]
+
+
+def get_comp_prop_july(
+    pID_trialdata: pd.DataFrame,
+    detailed: bool = True,
+) -> pd.DataFrame:
+    solutions = july_solutions()
+    return compute_comp_prop(pID_trialdata, detailed, solutions)
+
+
 def get_attention_check(pID_trialdata: pd.DataFrame) -> pd.DataFrame:
     pID_attention_check = pID_trialdata.loc[
         (pID_trialdata["question"] == "demographics_attncheck"), ["answer"]
@@ -268,7 +307,7 @@ def get_time_away(
         return pd.DataFrame(
             data=zero_data,
             index=index,
-            columns=colnames,
+            columns=colnames,  # type: ignore
         )
 
     # get off events
@@ -310,7 +349,7 @@ def get_time_away(
     ons_before_end = phase_times_ons["timestamp_x"] > phase_times_ons["timestamp"]
     ons_after_start = phase_times_ons["timestamp_y"] < phase_times_ons["timestamp"]
     ons_within_phase = phase_times_ons[(ons_before_end & ons_after_start)]
-    within_phase: pd.DataFrame = pd.concat((offs_within_phase, ons_within_phase))
+    within_phase: pd.DataFrame = pd.concat((offs_within_phase, ons_within_phase))  # type: ignore
     # time away within spr
     pID_events_within_spr = within_phase.loc[
         within_phase["phase"] == "story_reading",
@@ -397,7 +436,7 @@ def get_spr_wcg_break(pID_trialdata: pd.DataFrame) -> pd.DataFrame:
 
         times_spr_wcg.append(start_wcg - end_spr)
         pIDs.append(group_name)
-    pID_spr_wcg_break = pd.DataFrame(data=times_spr_wcg, index=pIDs, columns=["time"])
+    pID_spr_wcg_break = pd.DataFrame(data=times_spr_wcg, index=pIDs, columns=["time"])  # type: ignore
     pID_spr_wcg_break.index.name = "participantID"
     pID_spr_wcg_break.rename(columns={"time": "spr-wcg-break"}, inplace=True)
 
@@ -439,7 +478,7 @@ def get_exp_time_away(
         else:
             exp_times.append(_time_away(group_df).item())
         pIDs.append(group_name)
-    pID_exp_time = pd.DataFrame(data=exp_times, index=pIDs, columns=["exp_time_away"])
+    pID_exp_time = pd.DataFrame(data=exp_times, index=pIDs, columns=["exp_time_away"])  # type: ignore
     pID_exp_time.index.name = "participantID"
 
     return pID_exp_time
@@ -502,10 +541,10 @@ def get_questionnaire_data(
     for phase, questions in q_keys.items():
         q_answers: List[pd.DataFrame] = list()
         for question, q_colname, num_or_str in questions:
-            answer_df = pID_trialdata[
+            answer_df: pd.DataFrame = pID_trialdata[
                 (pID_trialdata["question"] == question)
                 & (pID_trialdata["phase"] == phase)
-            ][["answer"]]
+            ][["answer"]]  # type: ignore
             if answer_df.empty:
                 print(
                     f"No entry for question; {question},"
@@ -534,35 +573,73 @@ def get_questionnaire_data(
 
         # for transportation, compute summary stats
         if phase == "q_transportation":
-            # compute transportation score without item Q5
+            # Q2 and Q9 are reversed
+            pID_answers["tran_Q2"] = 8 - pID_answers["tran_Q2"]
+            pID_answers["tran_Q9"] = (
+                8 - pID_answers["tran_Q9"]
+            )  # compute transportation score without item Q5
             # (to distinguish lingering & transportation)
-            pID_answers_no_Q5 = pID_answers.copy().drop(columns="tran_Q5")
+            pID_answers["tran_raw"] = (
+                pID_answers[
+                    [
+                        "tran_Q1",
+                        "tran_Q3",
+                        "tran_Q4",
+                        "tran_Q6",
+                        "tran_Q7",
+                        "tran_Q8",
+                        "tran_Q10",
+                        "tran_Q11",
+                        "tran_Q12",
+                        "tran_Q13",
+                    ]
+                ].sum(axis=1)
+                # Q2 and Q9 are reversed, need to reverse them
+            ) + (8 - pID_answers["tran_Q2"] + 8 - pID_answers["tran_Q9"])
+
             # compute transportation on all answers
             # (just to have it)
-            pID_answers_all = pID_answers.copy()
+            pID_answers["tran_raw_all"] = (
+                pID_answers[
+                    [
+                        "tran_Q1",
+                        "tran_Q3",
+                        "tran_Q4",
+                        "tran_Q5",
+                        "tran_Q6",
+                        "tran_Q7",
+                        "tran_Q8",
+                        "tran_Q10",
+                        "tran_Q11",
+                        "tran_Q12",
+                        "tran_Q13",
+                    ]
+                ].sum(axis=1)
+                # Q2 and Q9 are reversed, need to reverse them
+            ) + (8 - pID_answers["tran_Q2"] + 8 - pID_answers["tran_Q9"])
+
             # compute the transportation score without Q5 and last two items
             # (because of bug in suppress condition)
-            pID_answers_no_Q5_Q12_Q13 = pID_answers.copy().drop(
-                columns=["tran_Q5", "tran_Q12", "tran_Q13"]
-            )
-
-            # add raw score column to output df
-            if condition != "suppress":
-                pID_answers["tran_raw"] = pID_answers_no_Q5.sum(axis=1)
-                pID_answers["tran_raw_all"] = pID_answers_all.sum(axis=1)
-            pID_answers["tran_raw_10"] = pID_answers_no_Q5_Q12_Q13.sum(axis=1)
+            pID_answers["tran_raw_10"] = (
+                pID_answers[
+                    [
+                        "tran_Q1",
+                        "tran_Q3",
+                        "tran_Q4",
+                        "tran_Q6",
+                        "tran_Q7",
+                        "tran_Q8",
+                        "tran_Q10",
+                        "tran_Q11",
+                    ]
+                ].sum(axis=1)
+                # Q2 and Q9 are reversed, need to reverse them
+            ) + (8 - pID_answers["tran_Q2"] + 8 - pID_answers["tran_Q9"])
 
             # add proportion score to output df
-            if condition != "suppress":
-                pID_answers["tran_prop"] = pID_answers["tran_raw"] / (
-                    pID_answers_no_Q5.shape[-1] * 7
-                )
-                pID_answers["tran_prop_all"] = pID_answers["tran_raw_all"] / (
-                    pID_answers_all.shape[-1] * 7
-                )
-            pID_answers["tran_prop_10"] = pID_answers["tran_raw_10"] / (
-                pID_answers_no_Q5_Q12_Q13.shape[-1] * 7
-            )
+            pID_answers["tran_prop"] = pID_answers["tran_raw"] / (12 * 7)
+            pID_answers["tran_prop_all"] = pID_answers["tran_raw_all"] / (13 * 7)
+            pID_answers["tran_prop_10"] = pID_answers["tran_raw_10"] / (10 * 7)
 
         q_results_all.append(pID_answers)
 
@@ -592,7 +669,9 @@ def get_mean_sr_rt(
         pID_timing_df = pID_timing_df.loc[pID_timing_df["timestamp"] < max_time]
     pID_timing_df.loc[:, "story_relatedness"] = pID_timing_df.apply(_rate_word, axis=1)
 
-    mean_sr = pID_timing_df["story_relatedness"].groupby("participantID").mean()
-    mean_rt = pID_timing_df["word_time"].groupby("participantID").mean()
+    mean_sr: pd.Series = (
+        pID_timing_df["story_relatedness"].groupby("participantID").mean()
+    )  # type: ignore
+    mean_rt: pd.Series = pID_timing_df["word_time"].groupby("participantID").mean()  # type: ignore
 
     return mean_sr, mean_rt

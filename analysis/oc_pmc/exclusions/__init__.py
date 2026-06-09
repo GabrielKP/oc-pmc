@@ -6,6 +6,7 @@ from .linger_interference_situation import exclude_linger_interference_situation
 from .linger_interference_story_spr import exclude_linger_interference_story_spr
 from .linger_interference_story_spr_end import exclude_linger_interference_story_spr_end
 from .linger_interference_tom import exclude_linger_interference_tom
+from .linger_multi_day import exclude_linger_multi_day
 from .linger_neutralcue2 import exclude_linger_neutralcue2
 from .linger_volition_button_press import exclude_linger_volition_button_press
 from .linger_volition_button_press_suppress import (
@@ -22,6 +23,7 @@ __all__ = [
     "exclude_linger_interference_story_spr",
     "exclude_linger_interference_story_spr_end",
     "exclude_linger_interference_tom",
+    "exclude_linger_multi_day",
     "exclude_linger_neutralcue2",
     "exclude_linger_volition_button_press",
     "exclude_linger_volition_button_press_suppress",

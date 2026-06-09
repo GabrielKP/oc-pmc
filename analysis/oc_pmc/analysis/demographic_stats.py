@@ -20,10 +20,14 @@ def func_demographic_stats(config: dict, data_df: pd.DataFrame):
         return
 
     # gender
-    n_female = sum(data_df["demographics_gender"] == "F")
-    n_male = sum(data_df["demographics_gender"] == "M")
-    n_neither = sum(data_df["demographics_gender"] == "NEITHER")
-    n_none_gender = sum(data_df["demographics_gender"] == "NONE")
+    if config["condition"] in ["multi_day_carver_july", "multi_day_july_carver"]:
+        suffix = "_1"
+    else:
+        suffix = ""
+    n_female = sum(data_df["demographics_gender" + suffix] == "F")
+    n_male = sum(data_df["demographics_gender" + suffix] == "M")
+    n_neither = sum(data_df["demographics_gender" + suffix] == "NEITHER")
+    n_none_gender = sum(data_df["demographics_gender" + suffix] == "NONE")
 
     n_none_gender_str = ""
     if n_none_gender == 1:
@@ -93,23 +97,27 @@ def func_demographic_stats(config: dict, data_df: pd.DataFrame):
     ages_to_int_dct = {age_str: idx for idx, age_str in enumerate(age_strs)}
 
     pd.set_option("future.no_silent_downcasting", True)
-    data_df["demographics_age_int"] = (
-        data_df["demographics_age"].replace(ages_to_int_dct).astype(int)
+    data_df["demographics_age_int" + suffix] = (
+        data_df["demographics_age" + suffix].replace(ages_to_int_dct).astype(int)
     )
     pd.set_option("future.no_silent_downcasting", False)
 
-    age_none = np.array(data_df["demographics_age"] == "NONE")
+    age_none = np.array(data_df["demographics_age" + suffix] == "NONE")
     age_median = int_to_ages_dct[
-        int(data_df.loc[~age_none, "demographics_age_int"].median())
+        int(data_df.loc[~age_none, "demographics_age_int" + suffix].median())
     ]
     age_Q1 = int_to_ages_dct[
-        int(data_df.loc[~age_none, "demographics_age_int"].quantile(0.25))
+        int(data_df.loc[~age_none, "demographics_age_int" + suffix].quantile(0.25))
     ]
     age_Q3 = int_to_ages_dct[
-        int(data_df.loc[~age_none, "demographics_age_int"].quantile(0.75))
+        int(data_df.loc[~age_none, "demographics_age_int" + suffix].quantile(0.75))
     ]
-    age_min = int_to_ages_dct[int(data_df.loc[~age_none, "demographics_age_int"].min())]
-    age_max = int_to_ages_dct[int(data_df.loc[~age_none, "demographics_age_int"].max())]
+    age_min = int_to_ages_dct[
+        int(data_df.loc[~age_none, "demographics_age_int" + suffix].min())
+    ]
+    age_max = int_to_ages_dct[
+        int(data_df.loc[~age_none, "demographics_age_int" + suffix].max())
+    ]
     n_none_age = sum(age_none)
 
     n_none_age_str = ""
@@ -149,22 +157,24 @@ def func_demographic_stats(config: dict, data_df: pd.DataFrame):
         idx: education_level for idx, education_level in enumerate(education_levels)
     }
 
-    data_df["demographics_education"] = data_df["demographics_education"].astype(int)
+    data_df["demographics_education" + suffix] = data_df[
+        "demographics_education" + suffix
+    ].astype(int)
 
     education_median = int_to_education_level_dct[
-        int(data_df["demographics_education"].median())
+        int(data_df["demographics_education" + suffix].median())
     ]
     education_Q1 = int_to_education_level_dct[
-        int(data_df["demographics_education"].quantile(0.25))
+        int(data_df["demographics_education" + suffix].quantile(0.25))
     ]
     education_Q3 = int_to_education_level_dct[
-        int(data_df["demographics_education"].quantile(0.75))
+        int(data_df["demographics_education" + suffix].quantile(0.75))
     ]
     education_min = int_to_education_level_dct[
-        int(data_df["demographics_education"].min())
+        int(data_df["demographics_education" + suffix].min())
     ]
     education_max = int_to_education_level_dct[
-        int(data_df["demographics_education"].max())
+        int(data_df["demographics_education" + suffix].max())
     ]
 
     if latex:
@@ -193,7 +203,7 @@ def func_demographic_stats(config: dict, data_df: pd.DataFrame):
         "NONE": "None of the above / Prefer not to identify",
     }
     race_ratios_dct = (
-        data_df["demographics_race"].value_counts(normalize=True).to_dict()
+        data_df["demographics_race" + suffix].value_counts(normalize=True).to_dict()
     )
     race_none_str = ""
 

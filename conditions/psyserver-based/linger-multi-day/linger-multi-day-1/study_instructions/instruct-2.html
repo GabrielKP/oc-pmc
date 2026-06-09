@@ -1,0 +1,58 @@
+<div class="container position-absolute top-50 start-50 translate-middle">
+  <div class="card text-center">
+    <h3 class="card-header">Study Overview</h3>
+    <div class="instructions card-body">
+      <div class="card-text my-3 mx-5">
+        <p>
+          <b>Payment requires completion of both days.</b>
+        </p>
+        <p>
+          <b>
+            Only start the study if you know that you will be able to complete
+            it today and tomorrow.
+          </b>
+        </p>
+      </div>
+
+      <div class="my-5 mx-5">
+        <div class="instructionsnav">
+          <div class="row">
+            <div class="col-2">
+              <button
+                type="button"
+                id="prevC"
+                value="prevC"
+                class="btn btn-primary btn-lg previous"
+              >
+                Previous
+              </button>
+            </div>
+            <div class="col-8">
+              <center>
+                <button
+                  type="button"
+                  id="next"
+                  value="next"
+                  class="btn btn-success btn-lg continue"
+                  disabled
+                >
+                  I will complete the study today and tomorrow.
+                </button>
+              </center>
+            </div>
+            <div class="col-2">
+              <button
+                type="button"
+                id="stop"
+                class="btn btn-danger btn-lg"
+                disabled
+              >
+                Stop
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,35 @@
+You are an assistant that performs human-like story-theme-relatedness ratings.
+Given a story and a list of individual words, rate how related each word is to the story.
+Rate each individual word with a number 1 (least related), 2, 3, 4, 5, 6 or 7 (most theme related).
+Only give words high story-theme-relatedness ratings if they are strongly related to core narrative themes.
+Do not give words high ratings just because they are mentioned in the story.
+A word being related to a specific moment or a specific detail does NOT qualify it for a high rating.
+Only words that relate to the **themes** of the story should be rated high in theme-relatedness.
+Ask yourself for each word, how related a human rater would consider the word? Consider that a human cannot remember the exact words and details of each scene. Then rate each word independently on how well it relates to the story.
+
+Required output format (repeat exactly for each word):
+**[word]** - Explanation: 1-2 sentences explanation. <word>word</word><rating>X</rating>
+
+
+These are human ratings in the right output format:
+**four** - Explanation: Four is the last digit of the telephone number, and plays an important role in the protagonist's life, making it a central theme. <word>four</word><rating>7</rating>
+**feel** - Explanation: The story is structured around what the protagonist feels rather than what she does. Her feelings of connection on the plane, her feelings of emptiness at home, and her feeling of loss when she finally dials the number. <word>feel</word><rating>5</rating>
+**murder** - Explanation: The story does not contain themes of murder. <word>murder</word><rating>1</rating>
+**regret** - Explanation: The protagonist shows strong regret about not calling Roy Spivey. <word>regret</word><rating>7</rating>
+**shovel** - Explanation: No shovel appears in the story. <word>shovel</word><rating>1</rating>
+**call** - Explanation: The protagonist being expected, but never calling Roy Spivey makes it a central theme of the story. <word>call</word><rating>7</rating>
+**body** - Explanation: The story includes physical interaction and attention to the protagonist's body, especially her height. <word>body</word><rating>3</rating>
+**never** - Explanation: Never calling Roy Spivey is a defining outcome of their relationship. <word>never</word><rating>4</rating>
+**touch** - Explanation: Touch is important in establishing the closeness between Roy Spivey and the protagonist. <word>touch</word><rating>6</rating>
+**lungs** - Explanation: Lungs are not important or central to the story. <word>lungs</word><rating>1</rating>
+**fan** - Explanation: The protagonist shows admiration for Roy Spivey, similar to a fan. <word>fan</word><rating>3</rating>
+**excitement** - Explanation: The protagonist is excited to sit next to a celebrity. <word>excitement</word><rating>5</rating>
+**suit** - Explanation: A suit is not part of the story, but it is indirectly related to spies and celebrities. <word>suit</word><rating>2</rating>
+**husband** - Explanation: The protagonist describes her husband and situations with him. <word>husband</word><rating>6</rating>
+**comfortable** - Explanation: comfort is a distant theme of the first part of the story, as Roy Spiveys and the protagonist closeness came through their comfort. <word>comfortable</word><rating>3</rating>
+**funny** - Explanation: The protagonist laughed with Roy Spivey, indicating he was funny. <word>funny</word><rating>2</rating>
+**question** - Explanation: The question why the protagonist did not call Roy Spivey is pertinent, and makes questions in general a distant theme of the story. <word>question</word><rating>3</rating>
+**society** - Explanation: Although society is not directly mentioned, the story is a distant reflection of society, and maybe even a critique, making it a very distant theme. <word>society</word><rating>2</rating>
+**celebrity** - Explanation: The story is about sitting next to a celebrity. <word>celebrity</word><rating>7</rating>
+
+Use these human ratings to calibrate your reasons and ratings.

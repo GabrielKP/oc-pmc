@@ -185,7 +185,7 @@ def func_difference_bin_means(
 
         measure_name = config.get("measure", "statistic")
 
-        plot_df = pd.DataFrame(estimate_df.to_numpy()[0], columns=[measure_name])
+        plot_df = pd.DataFrame(estimate_df.to_numpy()[0], columns=[measure_name])  # type: ignore
         plot_config = deepcopy(config)
         plot_config["measure"] = measure_name
         plot_config["custom_lines"] = [
@@ -240,7 +240,7 @@ def test_difference_bin_means(config: dict) -> tuple[float, float, float]:
     config["column"] = config["measure"]
 
     data_df = pd.concat((data1_df, data2_df))
-    difference, percentile, pvalue = func_difference_bin_means(config, data_df)
+    difference, percentile, pvalue = func_difference_bin_means(config, data_df)  # type: ignore
 
     alt = " (two-sided)"
     if config.get("alternative"):

@@ -32,19 +32,12 @@ def print_exclusive_exclusions(exclusions_df: pd.DataFrame):
     exclusions_df = exclusions_df.copy()
     if "exclusion" in exclusions_df.columns:
         exclusions_df.drop(columns=["exclusion"], inplace=True)
+    if "exclusion_1" in exclusions_df.columns:
+        exclusions_df.drop(columns=["exclusion_1"], inplace=True)
+    if "exclusion_2" in exclusions_df.columns:
+        exclusions_df.drop(columns=["exclusion_2"], inplace=True)
     exclusion_stats = exclusions_df.columns.to_list()
     print(" Exclusive amount of particpants excluded by stat:")
     for exclusion_stat in exclusion_stats:
         n_only = stat_only_exclusion(exclusions_df.copy(), exclusion_stat).sum()
         print(f"{exclusion_stat}: {n_only}")
-
-
-if __name__ == "__main__":
-    config = {
-        "story": "carver_original",
-        "condition": "suppress",
-    }
-    pID_questionnaire = load_questionnaire(config)
-    exclusions_df = filter_non_exclusion_rows(pID_questionnaire)
-    time_away_exclusive_excl = stat_only_exclusion(exclusions_df, "time_away_excl")
-    print(time_away_exclusive_excl.index[time_away_exclusive_excl].to_list())

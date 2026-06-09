@@ -79,10 +79,10 @@ def filter_by_studyID(
     data: pd.DataFrame, studyID: Union[str, List[str]]
 ) -> pd.DataFrame:
     if isinstance(studyID, str):
-        data = data[data["studyID"] == studyID]
+        data = data[data["studyID"] == studyID]  # type: ignore
     else:
         assert isinstance(studyID, list)
-        data = data[data["studyID"].isin(studyID)]
+        data = data[data["studyID"].isin(studyID)]  # type: ignore
     data.drop(columns="studyID")
     return data
 
@@ -90,13 +90,13 @@ def filter_by_studyID(
 def participants_finished(trialdata: pd.DataFrame) -> List[str]:
     finished = (trialdata["phase"] == "q_open") & (trialdata["status"] == "end")
     print(
-        f"Finished participants: {len(trialdata[finished]['participantID'].unique())}"
+        f"Finished participants: {len(trialdata[finished]['participantID'].unique())}"  # type: ignore
     )
-    return trialdata["participantID"][finished].unique().tolist()
+    return trialdata["participantID"][finished].unique().tolist()  # type: ignore
 
 
 def filter_by_pID(data: pd.DataFrame, pIDs) -> pd.DataFrame:
-    return data[data["participantID"].isin(pIDs)]
+    return data[data["participantID"].isin(pIDs)]  # type: ignore
 
 
 def filter_duplicate_entries(trialdata: pd.DataFrame) -> pd.DataFrame:
@@ -115,7 +115,7 @@ def filter_duplicate_entries(trialdata: pd.DataFrame) -> pd.DataFrame:
     # find first "end" in duplicates
     indices_to_drop = []
     for _, pID_df in duplicates.groupby("participantID"):
-        end_idx = pID_df[pID_df["status"] == "end"].sort_index().index[0]
+        end_idx = pID_df[pID_df["status"] == "end"].sort_index().index[0]  # type: ignore
         indices_to_drop.extend(pID_df.loc[end_idx:].iloc[1:].index.tolist())
     trialdata = trialdata.drop(index=indices_to_drop)
 
@@ -287,9 +287,9 @@ def load_eventdata_buddhika(path: str) -> pd.DataFrame:
         }
     )
     # reorder
-    eventdata = eventdata[
+    eventdata: pd.DataFrame = eventdata[
         ["participantID", "event", "delta_time", "data", "timestamp", "condition"]
-    ]
+    ]  # type: ignore
 
     return eventdata
 
@@ -306,9 +306,9 @@ def participants_finished_buddhika(trialdata: pd.DataFrame) -> List[str]:
         trialdata["status"] == "submit"
     )
     print(
-        f"Finished participants: {len(trialdata[finished]['participantID'].unique())}"
+        f"Finished participants: {len(trialdata[finished]['participantID'].unique())}"  # type: ignore
     )
-    return trialdata["participantID"][finished].unique().tolist()
+    return trialdata["participantID"][finished].unique().tolist()  # type: ignore
 
 
 def load_data_buddhika(

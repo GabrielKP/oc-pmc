@@ -5,6 +5,7 @@ import pickle
 from copy import deepcopy
 from functools import partial, wraps
 from numbers import Number
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
@@ -19,9 +20,12 @@ from oc_pmc import (
     RATEDWORDS_DIR,
     TIME_SPR_DIR,
     WORDCHAINS_DIR,
+    console,
     get_logger,
 )
 from oc_pmc.utils import (
+    clean_words,
+    get_n_sections,
     get_summary_func,
     keep_filter_args,
     remove_filter_args,
@@ -63,7 +67,9 @@ def map_keys_wrapper(func: Callable) -> Callable:
     """
 
     @wraps(func)
-    def mapped_keys(config, *args, **kwargs):
+    def mapped_keys(config=None, *args, **kwargs):
+        if config is None:
+            config = dict()
         key_maps = config.get("key_maps")
         active_swaps = list()  # track which keys have been mapped
         if key_maps is not None:
@@ -96,6 +102,45 @@ def map_keys_ls(func: Callable) -> Callable[..., list[str]]:
     """Same as map_keys but returns a list"""
     # shenanigans because of typing
     return map_keys_wrapper(func)
+
+
+def combined_configs_wrapper(func: Callable) -> Callable:
+    """Decorator to combine multiple loading configs into one dataframe.
+
+    Only works for functions outputting dataframes.
+    """
+
+    @wraps(func)
+    def combined_configs(config=None, *args, **kwargs):
+        if config is None:
+            config = dict()
+
+        if "combined_configs" not in config:
+            return func(config, *args, **kwargs)
+
+        combined_configs_dfs: list[pd.DataFrame] = list()
+        config_copy = deepcopy(config)
+        config_copy.pop("combined_configs")
+        for combined_config in config["combined_configs"]:
+            combined_configs_dfs.append(
+                func({**config_copy, **combined_config}, *args, **kwargs)
+            )
+
+            # mark df with combined config keys
+            if config.get("combined_configs_track_source", False):
+                for key in ["story", "condition", "position"]:
+                    if key in combined_config:
+                        combined_configs_dfs[-1][key] = combined_config[key]
+
+        return pd.concat(combined_configs_dfs)
+
+    return combined_configs
+
+
+def combined_configs(func: Callable) -> Callable[..., pd.DataFrame]:
+    """See combined_configs_wrapper"""
+    # shenanigans because of typing
+    return combined_configs_wrapper(func)
 
 
 def load_questionnaire_from_path(path: str) -> pd.DataFrame:
@@ -139,7 +184,7 @@ def load_rated_fields(config: Dict[str, Any]) -> pd.DataFrame:
             field_name = f"{field}_category"
             temp_rated_fields_df = temp_rated_fields_df[[rater_name]].rename(
                 columns={rater_name: field_name}
-            )
+            )  # type: ignore
 
             # handle multiple categories
             multiple_categories_strategy = config["multiple_category_strategy"]
@@ -180,7 +225,7 @@ def load_rated_fields(config: Dict[str, Any]) -> pd.DataFrame:
                     for idx, category in enumerate(row[field_name].split(",")):
                         new_row_df = pd.DataFrame(
                             {field_name: [category]},
-                            index=[f"{pID}-{idx}"],
+                            index=[f"{pID}-{idx}"],  # type: ignore
                         )
                         new_row_df.index.name = "participantID"
                         additional_single_rated_field_ls.append(new_row_df)
@@ -584,6 +629,7 @@ def load_corrections() -> Dict[str, str]:
 def load_rated_words_from_path(
     path: str,
     no_corrections: bool = False,
+    verbose: bool = False,
 ) -> Dict[str, float]:
     """Returns word-to-rating dict for given path.
 
@@ -601,6 +647,7 @@ def load_rated_words_from_path(
     """
     ratings_dict = dict()  # saves ratings
     tracking_set = set()  # tracks which words in ratings dict (no lowercase)
+    n_duplicates = 0
     with open(path, "r") as f_in:
         csv_file = csv.reader(f_in, delimiter=",")
 
@@ -616,7 +663,9 @@ def load_rated_words_from_path(
 
                 # print error for duplicates
                 if word_orig in tracking_set:
-                    print(f"Error, duplicate entry: row {idx}, word {word_orig}")
+                    if verbose:
+                        print(f"Error, duplicate entry: row {idx}, word {word_orig}")
+                    n_duplicates += 1
                     continue
                 tracking_set.add(word_orig)
 
@@ -639,6 +688,11 @@ def load_rated_words_from_path(
             except KeyError:
                 continue
 
+    if n_duplicates > 0:
+        log.info(f"Loaded {len(ratings_dict)} ratings from {path}")
+        log.warning(f"Found {n_duplicates} duplicate ratings.")
+    elif verbose:
+        log.info(f"Loaded {len(ratings_dict)} ratings from {path}")
     return ratings_dict
 
 
@@ -666,17 +720,29 @@ def load_rated_words(config: Dict) -> Dict[str, float]:
     rated_words_dct : Dict[str, float]
         Dictionary mapping words to ratings
     """
-    rated_words_path = os.path.join(
-        DATA_DIR,
-        RATEDWORDS_DIR,
-        config["approach"],
-        config["model"],
-        config["story"],
-        config["file"],
-    )
+    fields = [DATA_DIR, RATEDWORDS_DIR]
+    for field in ["approach", "model", "story", "file"]:
+        if config.get(field) is not None:
+            fields.append(config[field])
+    rated_words_path = os.path.join(*fields)
+
     return load_rated_words_from_path(
         rated_words_path, config.get("no_corrections", False)
     )
+
+
+def load_rated_words_raw_df(config: Dict) -> pd.DataFrame:
+    fields = [DATA_DIR, RATEDWORDS_DIR]
+    for field in ["approach", "model", "story", "file_raw"]:
+        if config.get(field) is not None:
+            fields.append(config[field])
+    rated_words_path = os.path.join(*fields)
+    rated_words_df = pd.read_csv(rated_words_path)
+    # apply corrections
+    if config.get("no_corrections", False):
+        corrections = load_corrections()
+        rated_words_df["word"] = rated_words_df["word"].str.lower().map(corrections)
+    return rated_words_df
 
 
 def load_word_list_txt(path: str) -> List[str]:
@@ -826,7 +892,9 @@ def load_time_words_from_path(
 
     colnames = [f"time {x}" for x in range(len(wcs_word_times_padded[0]))]
     word_times_df = pd.DataFrame(
-        data=np.array(wcs_word_times_padded), columns=colnames, index=wcs_id
+        data=np.array(wcs_word_times_padded),
+        columns=colnames,  # type: ignore
+        index=wcs_id,  # type: ignore
     )
     word_times_df.index.name = "participantID"
     return word_times_df
@@ -900,7 +968,6 @@ def load_words(config: Optional[dict] = None, corrections: bool = False) -> List
         if (word is not None and word != "" and word != np.nan)
     ]
     words = sorted(list(set(words)))
-    log.info(f"Loaded {len(words)} words from {len(paths_words)} files")
 
     if corrections:
         corrections_dct = load_corrections()
@@ -915,6 +982,7 @@ def load_words(config: Optional[dict] = None, corrections: bool = False) -> List
         words = list(normalized_words)
         log.info(f"Corrected {n_corrected} words.")
 
+    words = clean_words(words)
     log.info(f"Loaded {len(words)} words from {len(paths_words)} files in {base_dir}")
     return words
 
@@ -941,6 +1009,7 @@ def add_questionnaire_columns(
     return data_df
 
 
+@combined_configs
 @map_keys
 def load_wordchains(config: Dict[str, Any]) -> pd.DataFrame:
     """Returns words or wordchains for config keys: story, condition, position.
@@ -961,7 +1030,7 @@ def load_wordchains(config: Dict[str, Any]) -> pd.DataFrame:
             A row for each participant with all the words, if 'return_' is "merged".
     """
     path_words = os.path.join(
-        OUTPUTS_DIR,
+        DATA_DIR,
         "time_words",
         config["story"],
         config["condition"],
@@ -984,9 +1053,21 @@ def load_wordchains(config: Dict[str, Any]) -> pd.DataFrame:
     if config.get("align_timestamp", False):
         # only works for post free association phase!
         pID_questionnaire_df = load_questionnaire({**config, "filter": False})
+        if config.get("free_association_post_task_start_key", False):
+            post_fa_key = config["free_association_post_task_start_key"].get(
+                config["condition"],
+                "free_association_post_task_start",
+            )
+        else:
+            post_fa_key = "free_association_post_task_start"
+
+        if isinstance(config["align_timestamp"], dict):
+            alignment_key: str = config["align_timestamp"][config["condition"]]  # type: ignore
+        else:
+            alignment_key: str = config["align_timestamp"]
+
         alignment = (
-            pID_questionnaire_df[config["align_timestamp"]]
-            - pID_questionnaire_df["free_association_post_task_start"]
+            pID_questionnaire_df[alignment_key] - pID_questionnaire_df[post_fa_key]
         )
         alignment.name = "timestamp_offset"
         pID_words_df = pID_words_df.join(alignment, how="left")
@@ -1064,6 +1145,7 @@ def load_event_theme_rated_wordchains_np(config: dict) -> dict[str, np.ndarray]:
     return r_wc_dct
 
 
+@combined_configs
 @map_keys
 def load_rated_wordchains(config: Dict) -> pd.DataFrame:
     """Returns rated words or word chains.
@@ -1088,6 +1170,10 @@ def load_rated_wordchains(config: Dict) -> pd.DataFrame:
             A row for each word and it's data (e.g. timestamp, word_text,
             story_relatedness).
     """
+    if config.get("simulated", False):
+        from oc_pmc.simulate.rated_wordchains import simulate_rated_wordchains
+
+        return simulate_rated_wordchains(config)
     ratings_dict = load_rated_words(config["ratings"])
 
     pID_words_df = load_wordchains(config)
@@ -1188,7 +1274,7 @@ def load_n_thought_entries(
     pID_te_count_df = pd.DataFrame(
         data=np.zeros(len(questionnaire_df.index)),
         index=questionnaire_df.index,
-        columns=["thought_entries"],
+        columns=["thought_entries"],  # type: ignore
     )
     pID_te_count_df.loc[nonzero_count_sr.index.to_list(), "thought_entries"] = (
         nonzero_count_sr
@@ -1244,6 +1330,7 @@ def load_thought_entries_and_questionnaire(
     return te_df, quest_df
 
 
+@combined_configs
 def load_per_participant_data(config: dict) -> pd.DataFrame:
     measure = config.get("measure_name")
     if measure is None:
@@ -1285,13 +1372,13 @@ def load_per_participant_data(config: dict) -> pd.DataFrame:
             {measure: get_summary_func(config)}
         )
 
-    if data_df.dtypes.iloc[0] == bool:  # noqa:E721
+    if data_df.dtypes.iloc[0] == bool:  # noqa:E721 # type: ignore
         data_df = data_df.astype(int)
 
     if config.get("custom_measure"):
-        data_df[old_measure] = data_df[measure]
+        data_df[old_measure] = data_df[measure]  # type: ignore
 
-    data_df = data_df.sort_values("participantID")
+    data_df = data_df.sort_values("participantID")  # type: ignore
 
     return data_df
 
@@ -1475,3 +1562,223 @@ def load_manual_field_ratings(config: dict) -> pd.DataFrame:
         print(f"Category map: {category_map}")
 
     return field_ratings_pd
+
+
+def load_word_position(config: dict) -> dict[str, np.ndarray]:
+    """Returns word positions rated by rate_word_position.py as dict.
+    Maps words to a list over all sections (in 0-based index), where
+    a 1 indicates is in the section, and 0 indicates is not in the section.
+
+    config: dict
+        Has to contain 'story', 'mode', 'model_name'.
+    """
+    story = config["story"]
+    mode = config["mode"]
+    model_name = config["model_name"]
+    path = Path(
+        DATA_DIR,
+        "word_position",
+        story,
+        mode,
+        model_name,
+        "ratings.csv",
+    )
+    word_position_df = pd.read_csv(path, index_col=0)
+
+    n_sections = get_n_sections(
+        story=config["story"], word_position_mode=config["mode"]
+    )
+
+    word_position_dct = dict()
+    if mode == "incontext_top2":
+        # look 131b7d715382a640f229dc502edda52eb659cd2c for old implementation
+        raise NotImplementedError(f"Not implemented for {mode=}")
+
+    elif mode == "incontext":
+        # each word contains n_section columns with scores between 0 and 4.
+        # => apply softmax because difference between 0 and 4 is arbitrary.
+
+        method = config.get("method", "raw")
+
+        if method == "raw":
+            for word, positions in word_position_df.iterrows():
+                word_position_dct[word] = positions.to_numpy()
+        elif method.startswith("softmax"):
+            # determine temp & weighted from method string
+            temperature = None
+            weighted = False
+            method_parts = method.split("_")
+            if len(method_parts) != 1:
+                weighted = method_parts[1] == "weighted"
+                try:
+                    temperature = float(method_parts[1])
+                except ValueError:
+                    temperature = None
+                if len(method_parts) > 2:
+                    weighted = weighted or method_parts[2] == "weighted"
+                    if temperature is None:
+                        try:
+                            temperature = float(method_parts[2])
+                        except ValueError:
+                            temperature = None
+            if temperature is None:
+                temperature = 1.0
+
+            def softmax(x: list, temperature: float = 0.1) -> np.ndarray:
+                return np.exp(np.array(x) / temperature) / np.sum(
+                    np.exp(np.array(x) / temperature)
+                )
+
+            for word, positions in word_position_df.iterrows():
+                if weighted:
+                    word_position_dct[word] = softmax(
+                        positions.tolist(), temperature
+                    ) * sum(positions)
+                else:
+                    word_position_dct[word] = softmax(positions.tolist(), temperature)
+
+        elif method.startswith("thresholded"):
+            method_parts = method.split("_")
+            if len(method_parts) > 1:
+                threshold = float(method_parts[1])
+            else:
+                threshold = 4
+            for word, positions in word_position_df.iterrows():
+                match_vec = np.where(positions >= threshold, 1, 0)
+                if match_vec.sum() > 0:
+                    word_position_dct[word] = match_vec / match_vec.sum()
+                else:
+                    word_position_dct[word] = np.zeros(len(positions))
+        else:
+            raise ValueError(f"Invalid {method=}")
+
+    elif mode.startswith("exact_match"):
+        # each word contains a comma-separated list of section indices.
+        # divide score by number of matching sections.
+        # don't apply softmax to avoid introducing arbitrary scaling, as
+        # difference between matching and non-matching sections is meaningful.
+
+        def parse_all_matches(all_matches: str, n_sections: int) -> np.ndarray:
+            all_matches_np = np.zeros(n_sections)
+            if all_matches == "" or (
+                (not isinstance(all_matches, str)) and np.isnan(all_matches)
+            ):
+                return all_matches_np
+
+            all_matches_list = all_matches.split(",")
+            for match in all_matches_list:
+                all_matches_np[int(match)] += 1 / len(all_matches_list)
+
+            return all_matches_np
+
+        for word, positions in word_position_df.iterrows():
+            word_position_dct[word] = parse_all_matches(
+                positions["section_index"],  # type: ignore
+                n_sections,
+            )
+
+    else:
+        raise ValueError(f"Invalid {mode=}")
+    return word_position_dct
+
+
+def load_word_position_count_matching_sections(config: dict) -> dict[str, int]:
+    if config["mode"] == "incontext":
+        path = Path(
+            DATA_DIR,
+            "word_position",
+            config["story"],
+            config["mode"],
+            config["model_name"],
+            "count_matching_sections.csv",
+        )
+    else:
+        path = Path(
+            DATA_DIR,
+            "word_position",
+            config["story"],
+            config["mode"],
+            "count_matching_sections.csv",
+        )
+    count_df = pd.read_csv(path, index_col=0)
+    return count_df.to_dict(orient="dict")["count"]
+
+
+def load_story(story: str) -> str:
+    path = Path(DATA_DIR, "stories", story, "intact.txt")
+    return path.read_text()
+
+
+def load_story_sentences(story: str, story_file: str = "intact.txt") -> list[str]:
+    path_story = Path(DATA_DIR, "stories", story, story_file)
+    with open(path_story, "r") as f_in:
+        senteces = f_in.read().split("\n")
+    return [sen for sen in senteces if sen != "***" and sen != ""]
+
+
+def load_story_sentences_grouped(
+    story: str, story_file: str = "intact.txt"
+) -> List[List[str]]:
+    """Returns a list of sections, each containing a list of sentences."""
+    path_story = Path(DATA_DIR, "stories", story, story_file)
+    with open(path_story, "r") as f_in:
+        story_text = f_in.read()
+    sections = story_text.split("***\n")
+    section_sentences = [section.strip().split("\n") for section in sections if section]
+    return section_sentences
+
+
+@map_keys
+def load_screen_recording_exclusions(config: dict) -> pd.DataFrame:
+    """Loads and returns the screen recording exclusion df.
+
+    If the file does not exist, or does not include all participants,
+     the script will modify the file.
+    """
+
+    path_screen_recording_exclusions = os.path.join(
+        DATA_DIR,
+        QUESTIONNAIRE_DIR,
+        config["story"],
+        config["condition"],
+        "screen_recordings.csv",
+    )
+
+    # to check for outdated
+    pIDs_updated = load_questionnaire(config).index.to_list()
+
+    if Path(path_screen_recording_exclusions).exists():
+        screen_recording_exclusions_df = load_questionnaire_from_path(
+            path_screen_recording_exclusions
+        )
+
+        pIDs_old = screen_recording_exclusions_df.index.to_list()
+
+        missing_pIDs = set(pIDs_updated).difference(pIDs_old)
+    else:
+        screen_recording_exclusions_df = pd.DataFrame()
+        missing_pIDs = pIDs_updated
+
+    if len(missing_pIDs) > 0:
+        missing_pIDs_df = pd.DataFrame(index=list(missing_pIDs))  # type: ignore
+        missing_pIDs_df["exclusion"] = "excluded"
+        missing_pIDs_df["reason"] = "not_rated"
+
+        screen_recording_exclusions_df = pd.concat(
+            (screen_recording_exclusions_df, missing_pIDs_df), axis=0
+        )
+        screen_recording_exclusions_df.to_csv(
+            path_screen_recording_exclusions, header=True, index=True
+        )
+
+        console.print(
+            (
+                f"\n\nUpdated screen recording exclusion file with {len(missing_pIDs)}"
+                " pIDs.\n"
+                f"UPDATE EXCLUSIONS: {path_screen_recording_exclusions}"
+            ),
+            style="red bold",
+        )
+        print()
+
+    return screen_recording_exclusions_df

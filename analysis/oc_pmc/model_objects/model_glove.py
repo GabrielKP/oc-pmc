@@ -24,19 +24,8 @@ class Glove(ModelObject):
         path_cache_glove = os.path.join(cache_dir, f"{glove_name}.pkl")
         if not os.path.isfile(path_cache_glove):
             # load and save embeddings in faster format for speedup.
-            try:
-                df = pd.read_csv(
-                    path_glove, sep=" ", quoting=3, header=None, index_col=0
-                )
-            except FileNotFoundError as err:
-                log.critical(
-                    f"Cannot find embeddings at: {path_glove}"
-                    " - Please download glove embeddings"
-                    " (https://nlp.stanford.edu/projects/glove/ - glove.6B.zip)"
-                    " and unzip them into the data/external/glove/ directory. "
-                )
-                raise err
             log.info(f"Loading glove embeddings from {path_glove}")
+            df = pd.read_csv(path_glove, sep=" ", quoting=3, header=None, index_col=0)
             embedding_dict = {key: val.values for key, val in df.T.items()}
             check_make_dirs(path_cache_glove, verbose=False)
             with open(path_cache_glove, "wb") as f_out:

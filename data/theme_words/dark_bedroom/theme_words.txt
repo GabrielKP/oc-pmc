@@ -1,10 +1,10 @@
 dim
 fan
-light
+darkness
 remote
 wife
-darkness
+light
 bedroom
 years
-lightbulb
 bulb
+lightbulb

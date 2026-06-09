@@ -1,18 +1,20 @@
+import json
 import os
 from copy import deepcopy
 from numbers import Number
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from numpy.random import Generator, default_rng
-from plotly.subplots import make_subplots
+from rich.console import Console
 
 from oc_pmc import OUTPUTS_DIR, PLOTS_DIR, STUDYPLOTS_DIR, get_logger
 
 log = get_logger(__name__)
+console = Console()
 
 
 def permute_theme_words(
@@ -37,7 +39,7 @@ def permute_theme_words(
 
 
 def check_make_dirs(
-    paths: Union[str, list[str]],
+    paths: Union[str, list[Union[str, Path]], Path],
     verbose: bool = True,
     isdir: bool = False,
 ) -> None:
@@ -126,7 +128,7 @@ def wordchains_to_df(
         colnames = [f"{colname_base}_{idx}" for idx in range(wcs_np.shape[1])]
     else:
         colnames = None
-    return pd.DataFrame(wcs_np, columns=colnames)
+    return pd.DataFrame(wcs_np, columns=colnames)  # type: ignore
 
 
 def trim_wordchain(wordchain: list[str]) -> list[str]:
@@ -193,6 +195,7 @@ def save_plot(
         base = os.path.join(OUTPUTS_DIR, PLOTS_DIR)
     output_path = os.path.join(base, path)
     check_make_dirs(output_path, verbose=False)
+    fig.update_layout(margin=config.get("margin"))
     fig.write_image(
         file=output_path,
         width=config.get("width"),
@@ -215,8 +218,8 @@ def cut_small_value(value: float) -> str:
     """Rounds value to first non-zero position after comma, if it is small."""
     value_str = f"{value:f}"
 
-    if value >= abs(0.09):
-        return str(round(value, 2))
+    if value >= 0.09:
+        return str(round(value, 2))[1:]
 
     idx = 3
     # offset start if negative value is found
@@ -409,3 +412,91 @@ def add_config_columns(
     for column in config_columns:
         data_df[column] = config[column]
     return data_df
+
+
+def print_config(config: dict[str, Any]):
+    """Pretty print the config."""
+    config_copy = deepcopy(config)
+    console.print(json.dumps(config_copy, indent=4))
+
+
+def zscore(
+    data: np.ndarray,
+    means: Optional[np.ndarray] = None,
+    stds: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    if means is None:
+        means = cast(np.ndarray, data.mean(axis=0))
+    if stds is None:
+        stds = cast(np.ndarray, data.std(axis=0, ddof=1))
+    return (data - means) / (stds + 1e-6)
+
+
+def clean_words(words: list[str], remove_duplicates: bool = True) -> list[str]:
+    """Cleans words by removing duplicates and converting to lowercase."""
+    if remove_duplicates:
+        words = list(
+            set([word.lower().strip().strip(".").strip(",") for word in words])
+        )
+    return [word.lower().strip().strip(".").strip(",") for word in words]
+
+
+def get_n_sections(story: str, word_position_mode: str) -> int:
+    if story == "carver_original":
+        if word_position_mode == "exact_match_sentences":
+            n_sections = 259
+        else:
+            n_sections = 9
+    elif story == "july_original":
+        if word_position_mode == "exact_match_sentences":
+            raise NotImplementedError(
+                f"Not implemented for {story=} {word_position_mode=}"
+            )
+        else:
+            n_sections = 11
+    else:
+        raise NotImplementedError(f"Not implemented for {story=}")
+
+    return n_sections
+
+
+def remove_words_in_sections(
+    data_df: pd.DataFrame,
+    word_position_dct: dict[str, np.ndarray],
+    removed_sections: list[int],
+    unique_in_section: bool,
+) -> pd.DataFrame:
+    """Removes the words that are in config['removed_sections']
+    as marked by word_position_dct.
+
+    """
+
+    def check_in_removed_section(
+        word: str,
+        word_position_dct: dict[str, np.ndarray],
+        removed_sections: list[int],
+        unique_in_section: bool,
+    ) -> bool:
+        word = word.lower().strip()
+        if word not in word_position_dct:
+            return False
+
+        match_scores = word_position_dct[word]
+        in_removed_sections = any(match_scores[removed_sections] > 0)
+        if unique_in_section and in_removed_sections:
+            match_scores[removed_sections] = 0
+            return all(match_scores == 0)
+        else:
+            return in_removed_sections
+
+    words_to_remove = data_df["word_text"].apply(
+        lambda word: check_in_removed_section(
+            word,
+            word_position_dct,
+            removed_sections,
+            unique_in_section,
+        )
+    )
+
+    data_df_without_words_in_sections = data_df.loc[~words_to_remove].copy()
+    return data_df_without_words_in_sections

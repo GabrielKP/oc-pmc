@@ -261,7 +261,7 @@ def exclude_linger_interference_story_spr_end(
     )
     if pre_reg_exclusions:
         console.print(
-            "\nEXLCUDING BASED ON ORIGINAL PRE-REGISTRATION!", style="red bold"
+            "\nEXCLUDING BASED ON ORIGINAL PRE-REGISTRATION!", style="red bold"
         )
 
 

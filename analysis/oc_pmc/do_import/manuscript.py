@@ -1,3 +1,15 @@
+"""Import all the raw data into the data dir.
+
+If you run this, do not forget the id_mapping.json!
+You won't replicate the exact data, if you don't map the ids!
+
+Place the id_mapping.json for linger_volition in:
+conditions/psiturk-based/linger-volition/id_mapping.json
+
+For all other conditions, place it in:
+conditions/psyserver-based/data/id_mapping.json
+"""
+
 from oc_pmc.do_import.data_carver_original_buddhika import (
     do_import_exclusion_data_buddhika,
 )
@@ -21,6 +33,7 @@ from oc_pmc.do_import.linger_interference_story_spr_end import (
     do_import_linger_interference_story_spr_end,
 )
 from oc_pmc.do_import.linger_interference_tom import do_import_linger_interference_tom
+from oc_pmc.do_import.linger_multi_day import do_import_linger_multi_day
 from oc_pmc.do_import.linger_neutralcue2 import do_import_linger_neutralcue2
 from oc_pmc.do_import.linger_volition_button_press import (
     do_import_volition_button_press,
@@ -41,6 +54,7 @@ def do_import_all():
     do_import_linger_interference_story_spr()
     do_import_linger_interference_story_spr_end()
     do_import_linger_interference_tom()
+    do_import_linger_multi_day()
     do_import_linger_neutralcue2()
     do_import_volition_button_press()
     do_import_linger_volition_button_press_suppress()

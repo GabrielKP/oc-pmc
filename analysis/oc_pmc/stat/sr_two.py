@@ -18,4 +18,4 @@ def sr_two(config: Dict[str, Any]):
         data1_sr = data1_df[column].dropna()
         data2_sr = data2_df[column].dropna()
 
-    test_two(config, data1_sr, data2_sr)
+    test_two(config, data1_sr, data2_sr)  # type: ignore

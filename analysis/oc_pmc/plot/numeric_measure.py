@@ -26,7 +26,9 @@ def func_plot_numeric_measure(
         measure = config["measure"]
     column = measure
     category_name = config.get("x", "condition")
-    summary_func: Callable = config.get("summary_fun", "mean")
+    summary_func: Union[Callable, str] = config.get("summary_fun", "mean")
+    if summary_func is np.nanmean or summary_func is np.mean:
+        summary_func = "mean"
 
     # update grouping columns
     grouping_columns = ["story", "condition", "position"]
@@ -48,7 +50,7 @@ def func_plot_numeric_measure(
             .sample(frac=1, replace=True)
             .groupby(grouping_columns, observed=False)
             .aggregate({column: summary_func})
-        )
+        )  # type: ignore
 
     if config.get("bootstrap"):
         lowers_df, uppers_df = bootstrap_with_groups(
@@ -85,7 +87,10 @@ def func_plot_numeric_measure(
                 if temp_color_discrete_sequence is not None:
                     color_discrete_sequence.append(temp_color_discrete_sequence[idx])
 
-        if len(color_discrete_sequence) == 0:
+        if (
+            len(color_discrete_sequence) == 0
+            and temp_color_discrete_sequence is not None
+        ):
             raise ValueError(
                 "No entry in category_order matches actual data categories."
             )
@@ -110,6 +115,7 @@ def func_plot_numeric_measure(
             text=config.get("text"),
             barmode=config.get("barmode", "relative"),
             title=config.get("title", measure),
+            color_discrete_map=config.get("color_map"),
             color_discrete_sequence=color_discrete_sequence,
             orientation=config.get("orientation"),
             category_orders=category_orders,
@@ -124,6 +130,7 @@ def func_plot_numeric_measure(
                 tickmode="array",
                 ticks=config.get("x_ticks", "outside"),
                 tickwidth=config.get("x_tickwidth"),
+                ticklen=config.get("x_ticklen"),
                 tickfont=config.get("x_tickfont", dict(size=32)),
                 tickvals=config.get("x_tickvals"),
                 ticktext=config.get("x_ticktext"),
@@ -144,6 +151,7 @@ def func_plot_numeric_measure(
                 range=config.get("y_range"),
                 ticks=config.get("y_ticks", "outside"),
                 tickwidth=config.get("y_tickwidth", 6),
+                ticklen=config.get("y_ticklen"),
                 tickfont=config.get("y_tickfont", dict(size=32)),
                 tickvals=config.get("y_tickvals"),
                 ticktext=config.get("y_ticktext"),
@@ -184,6 +192,7 @@ def func_plot_numeric_measure(
                 tickmode="array",
                 ticks=config.get("x_ticks", "outside"),
                 tickwidth=config.get("x_tickwidth"),
+                ticklen=config.get("x_ticklen"),
                 tickfont=config.get("x_tickfont", dict(size=32)),
                 tickvals=config.get("x_tickvals"),
                 ticktext=config.get("x_ticktext"),
@@ -204,6 +213,7 @@ def func_plot_numeric_measure(
                 range=config.get("y_range"),
                 ticks=config.get("y_ticks", "outside"),
                 tickwidth=config.get("y_tickwidth", 6),
+                ticklen=config.get("y_ticklen"),
                 tickfont=config.get("y_tickfont", dict(size=32)),
                 tickvals=config.get("y_tickvals"),
                 ticktext=config.get("y_ticktext"),
@@ -219,13 +229,19 @@ def func_plot_numeric_measure(
         hlines = config.get("hlines")
         vlines = config.get("vlines")
     fig.update_traces(
-        error_x=dict(
-            thickness=12,
-            width=0,
+        error_x=config.get(
+            "error_x",
+            dict(
+                thickness=12,
+                width=0,
+            ),
         ),
-        error_y=dict(
-            thickness=12,
-            width=0,
+        error_y=config.get(
+            "error_y",
+            dict(
+                thickness=12,
+                width=0,
+            ),
         ),
     )
     fig.update_layout(

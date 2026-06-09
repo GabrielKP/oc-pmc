@@ -1,0 +1,41 @@
+<div class="container position-absolute top-50 start-50 translate-middle">
+  <div class="card text-center">
+    <h3 class="card-header">Study Overview</h3>
+    <div class="instructions card-body">
+      <div class="card-text my-3 mx-5">
+        <p>This study takes place on two sequential days.</p>
+        <p>
+          Today's session will take approximately
+          <span id="studytime_day1">XX</span> minutes.<br />Tomorrow's session
+          will take approximately <span id="studytime_day2">YY</span> minutes.
+        </p>
+        <p>
+          <b
+            >To successfully complete this study, you have to participate today
+            <i>and</i> tomorrow.</b
+          >
+        </p>
+      </div>
+
+      <div class="instructionsnav">
+        <div class="row">
+          <div class="col-2">
+            <!-- no previous button on first screen -->
+          </div>
+          <div class="col-8"></div>
+          <div class="col-2">
+            <button
+              type="button"
+              id="next"
+              value="next"
+              class="btn btn-primary btn-lg continue"
+              disabled
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
