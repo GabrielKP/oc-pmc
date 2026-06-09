@@ -1,3 +1,15 @@
+"""Import all the raw data into the data dir.
+
+If you run this, do not forget the id_mapping.json!
+You won't replicate the exact data, if you don't map the ids!
+
+Place the id_mapping.json for linger_volition in:
+conditions/psiturk-based/linger-volition/id_mapping.json
+
+For all other conditions, place it in:
+conditions/psyserver-based/data/id_mapping.json
+"""
+
 from oc_pmc.do_import.data_carver_original_buddhika import (
     do_import_exclusion_data_buddhika,
 )
