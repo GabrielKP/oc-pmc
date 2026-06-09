@@ -1,0 +1,86 @@
+<div class="container position-absolute top-50 start-50 translate-middle">
+  <div class="card text-center">
+    <h3 class="card-header">Mic check</h3>
+    <div class="instructions card-body">
+      <div class="card-text">
+        <p>Ensure your microphone is working correctly.</p>
+        <p>
+          <b
+            >Make a recording of your voice and check if it is clear and loud
+            enough.</b
+          >
+        </p>
+        <p>You will use the microphone today.</p>
+      </div>
+
+      <section class="main-controls">
+        <?xml version="1.0" encoding="UTF-8"?><svg
+          width="45px"
+          height="45px"
+          class="mb-3"
+          stroke-width="1.8"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          color="#000000"
+        >
+          <rect
+            x="9"
+            y="2"
+            width="6"
+            height="12"
+            rx="3"
+            stroke="#000000"
+            stroke-width="1.8"
+            stroke-width="1.5"
+          ></rect>
+          <path
+            d="M5 10V11C5 14.866 8.13401 18 12 18V18V18C15.866 18 19 14.866 19 11V10"
+            stroke="#000000"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          ></path>
+          <path
+            d="M12 18V22M12 22H9M12 22H15"
+            stroke="#000000"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          ></path>
+        </svg>
+        <div id="buttons">
+          <button type="button" class="btn btn-primary" id="record">
+            Record
+          </button>
+          <button type="button" class="btn btn-danger" id="stop" disabled>
+            Stop
+          </button>
+          <button type="button" class="btn btn-success" id="play" disabled>
+            Play
+          </button>
+        </div>
+      </section>
+
+      <div class="instructionsnav">
+        <div class="row">
+          <div class="col-2">
+            <!-- no previous button on first screen -->
+          </div>
+          <div class="col-8"></div>
+          <div class="col-2">
+            <button
+              type="button"
+              id="next"
+              value="next"
+              class="btn btn-primary btn-lg continue"
+              disabled
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
