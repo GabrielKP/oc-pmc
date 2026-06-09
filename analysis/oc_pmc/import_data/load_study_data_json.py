@@ -2,9 +2,11 @@ import glob
 import json
 import os
 from ast import literal_eval
+from importlib.resources import files
 from typing import List, Optional, Tuple, Union
 
 import pandas as pd
+from oc_pmc import console
 
 
 def load_config(path: str) -> List[str]:
@@ -40,10 +42,10 @@ def filter_by_studyID(
     data: pd.DataFrame, studyID: Union[str, List[str]]
 ) -> pd.DataFrame:
     if isinstance(studyID, str):
-        data = data[data["studyID"] == studyID]
+        data = data[data["studyID"] == studyID]  # type: ignore
     else:
         assert isinstance(studyID, list)
-        data = data[data["studyID"].isin(studyID)]
+        data = data[data["studyID"].isin(studyID)]  # type: ignore
     data.drop(columns="studyID")
     return data
 
@@ -53,34 +55,60 @@ def participants_finished(trialdata: pd.DataFrame) -> List[str]:
         trialdata["status"] == "stage_end"
     )
     print(
-        f"Finished participants: {len(trialdata[finished]['participantID'].unique())}"
+        f"Finished participants: {len(trialdata[finished]['participantID'].unique())}"  # type: ignore
     )
-    return trialdata["participantID"][finished].unique().tolist()
+    return trialdata["participantID"][finished].unique().tolist()  # type: ignore
 
 
 def filter_by_pID(data: pd.DataFrame, pIDs) -> pd.DataFrame:
-    return data[data["participantID"].isin(pIDs)]
+    return data[data["participantID"].isin(pIDs)]  # type: ignore
+
+
+def get_pid(f):
+    base = os.path.basename(f).replace(".json", "")
+    parts = base.split("_")
+    if parts[0].startswith("2026"):
+        return base
+    return parts[0]
 
 
 def load_json_data(
     json_dir: str,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # get all json files
-    json_file_paths = glob.glob(os.path.join(json_dir, "*.json"))
+    json_file_paths = sorted(glob.glob(os.path.join(json_dir, "*.json")))
     print(f"> Attempting to load {len(json_file_paths)} json files from {json_dir}")
 
     # load all json files
     trialdata_pds: List[pd.DataFrame] = list()
     eventdata_pds: List[pd.DataFrame] = list()
+    pIDs = set()
     for json_file_path in json_file_paths:
         if json_file_path.endswith(".debug.json") or json_file_path.endswith(
             ".excluded.json"
         ):
             continue
+
         with open(json_file_path, "r") as json_in:
             # 1. load & parse json
             json_file = json.load(json_in)
-            # 2. separate information
+
+            # 2. check for duplicates
+            if "participantID" not in json_file:
+                # no participantID, skip
+                continue
+
+            pID = json_file["participantID"]
+            if pID == "67deb49ea8a80e9d2fb0973e":  # debug participant
+                continue
+            if pID in pIDs:
+                raise RuntimeError(
+                    f"Duplicate participantID: {pID}. Use '.excluded.json' to mark"
+                    " one or both files as excluded."
+                )
+            pIDs.add(pID)
+
+            # 3. separate information
             trialdata_dct = json_file["trialdata"]
             eventdata_dct = json_file["eventdata"]
 
@@ -88,25 +116,42 @@ def load_json_data(
                 pd.DataFrame.from_records(trialdata_dct)
             )
 
+            # content warning, consent & multiple_days_agree
+            skip_participant = False
+            for col in [
+                "content_warning_agree",
+                "consent_agree",
+                "multiple_days_agree",
+            ]:
+                if col in participant_df.columns:
+                    if not participant_df.loc[~participant_df[col].isna(), col].iloc[0]:
+                        print(
+                            f"Skipping participant"
+                            f" {participant_df['participantID'].iloc[0]}:"
+                            f" did not {col}"
+                        )
+                        skip_participant = True
+                        break
+            if skip_participant:
+                continue
+
             if "h_captcha_verification" in json_file:
                 # insert new row by mirroring h_captcha_response row
-                new_col_dct = (
-                    participant_df.loc[
-                        participant_df["question"] == "h_captcha_response"
-                    ]
-                    .iloc[[0]]
-                    .to_dict("list")
-                )
+                h_captcha_df = participant_df.loc[
+                    participant_df["question"] == "h_captcha_response"
+                ]
+                if len(h_captcha_df) > 0:
+                    new_col_dct = h_captcha_df.iloc[[0]].to_dict("list")
 
-                new_col_dct["question"] = ["h_captcha_verification"]
-                new_col_dct["answer"] = [json_file["h_captcha_verification"]]
-                new_col_dct["stage"] = ["server"]
-                new_col_dct["status"] = [None]
-                new_col_dct["timestamp"] = [None]
+                    new_col_dct["question"] = ["h_captcha_verification"]
+                    new_col_dct["answer"] = [json_file["h_captcha_verification"]]
+                    new_col_dct["stage"] = ["server"]
+                    new_col_dct["status"] = [None]
+                    new_col_dct["timestamp"] = [None]
 
-                participant_df = pd.concat(
-                    (participant_df, pd.DataFrame(new_col_dct)), ignore_index=True
-                )
+                    participant_df = pd.concat(
+                        (participant_df, pd.DataFrame(new_col_dct)), ignore_index=True
+                    )
 
             # 3. convert to pd
             trialdata_pds.append(participant_df)
@@ -183,15 +228,18 @@ def load_data_json(
             filter_condition = (filter_condition, filter_condition)
         filter_condition_name, condition = filter_condition
         all_conditions = trialdata["condition"].unique()
-        print(
-            f"Filtering for condition: {filter_condition_name} out of {all_conditions}"
+        console.print(
+            f"Filtering for condition: [yellow]{filter_condition_name}[/yellow]"
+            f" out of {all_conditions}"
         )
-        print(f"Naming condition {condition}")
+        console.print(f"Naming condition [yellow]{condition}[/yellow]")
         p_with_condition = trialdata["condition"] == filter_condition_name
         pIDs_condition = (
             trialdata.loc[p_with_condition, "participantID"].unique().tolist()
         )
         trialdata = filter_by_pID(trialdata, pIDs_condition)
         eventdata = filter_by_pID(eventdata, pIDs_condition)
+
+        print("Filtered participants: ", len(pIDs_condition))
 
     return trialdata, eventdata, story, condition

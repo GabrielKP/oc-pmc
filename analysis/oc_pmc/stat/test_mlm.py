@@ -500,7 +500,6 @@ def check_model_assumptions(
         height=assumptions_height,  # Height in pixels
         title="Model Assumptions Diagnostic Plots",  # Optional overall title
     )
-
     if config.get("assumptions_show", False):
         fig_assumptions.show()
 
@@ -577,10 +576,14 @@ def test_mlm(config: dict):
 
     # add story & position column back in
     data1_df = add_config_columns(
-        config=config1, data_df=data1_df, config_columns=config_columns
+        config=config1,
+        data_df=data1_df,  # type: ignore
+        config_columns=config_columns,
     )
     data2_df = add_config_columns(
-        config=config2, data_df=data2_df, config_columns=config_columns
+        config=config2,
+        data_df=data2_df,  # type: ignore
+        config_columns=config_columns,
     )
     data_df = pd.concat((data1_df, data2_df))
 

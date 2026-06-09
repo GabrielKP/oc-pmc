@@ -43,14 +43,14 @@ def get_wcs_df(pID_wcs: pd.DataFrame) -> pd.DataFrame:
 
     wcs_ndarray = wordchains_to_ndarray(wcs_list, pad_val="")
     colnames = ["ID"] + [f"word {i}" for i in range(wcs_ndarray.shape[-1] - 1)]
-    wcs_df = pd.DataFrame(wcs_ndarray, columns=colnames)
+    wcs_df = pd.DataFrame(wcs_ndarray, columns=colnames)  # type: ignore
 
     wcs_df = wcs_df.copy()
 
     # add cue
     cue_df = pd.DataFrame(
         ["" for _ in range(wcs_df.shape[0])],
-        columns=["cue"],
+        columns=["cue"],  # type: ignore
         index=wcs_df.index,
     )
     wcs_df = cue_df.join(wcs_df)
@@ -344,8 +344,8 @@ def import_data(
     # Map ids for anonymization
     pIDs = trialdata["participantID"].unique().tolist()
     mapped_pIDs, mapping = mapIds(study_data_dir=study_data_dir, ids=pIDs)
-    trialdata["participantID"] = trialdata["participantID"].map(mapping)
-    eventdata["participantID"] = eventdata["participantID"].map(mapping)
+    trialdata["participantID"] = trialdata["participantID"].map(mapping)  # type: ignore
+    eventdata["participantID"] = eventdata["participantID"].map(mapping)  # type: ignore
 
     # convert
     pID_trialdata = trialdata.set_index("participantID")

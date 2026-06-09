@@ -1,4 +1,6 @@
 import math
+import re
+from collections import defaultdict
 from itertools import combinations
 from pathlib import Path
 
@@ -8,20 +10,33 @@ import plotly.io as pio
 from oc_pmc import DATA_DIR, RATEDWORDS_DIR, console
 from oc_pmc.analysis.demographic_stats import demographic_stats
 from oc_pmc.analysis.krippendorf_alpha import krippendorf_alpha
+from oc_pmc.analysis.word_position import compute_rank_spearman_correlation
 from oc_pmc.analysis.word_stats import compute_word_stats
 from oc_pmc.load import (
     load_n_thought_entries,
+    load_per_participant_data,
     load_questionnaire,
     load_rated_wordchains,
+    load_story_sentences_grouped,
+    load_word_position,
     load_wordchains,
 )
 from oc_pmc.plot import (
+    plot_bars_match_score,
     plot_by_time_shifted,
     plot_categorical_measure,
     plot_example_wcs,
     plot_numeric_measure,
 )
+from oc_pmc.plot.by_time_shifted import func_load, func_plot_by_time
 from oc_pmc.plot.distribution import plot_distribution
+from oc_pmc.plot.numeric_measure import func_plot_numeric_measure
+from oc_pmc.plot.scatter_measures import plot_scatter_measures
+from oc_pmc.plot.word_position import (
+    plot_by_time_shifted_without_section,
+    plot_match_score_across_conditions,
+    plot_match_score_by_time_sections,
+)
 from oc_pmc.stat import (
     correlate_two,
     sr_two,
@@ -30,7 +45,9 @@ from oc_pmc.stat import (
     test_two,
 )
 from oc_pmc.stat.difference_bin_means import test_difference_bin_means
+from oc_pmc.utils import cut_small_value, remove_words_in_sections
 from oc_pmc.utils.aggregator import aggregator
+from rich.table import Table
 
 # because: https://github.com/plotly/plotly.py/issues/3469
 # adds unwanted text to first pdf plot made (e.g. in suppl. materials volition)
@@ -44,7 +61,7 @@ FILETYPE = "svg"
 FILETYPE_SUPPL = "pdf"
 COL_BG = "#FFFFFF"
 COL1 = "#000000"
-SUBJECTIVE_LINGERING_Y_RANGE = [1, 7]
+SUBJECTIVE_LINGERING_Y_RANGE = [1, 7.1]
 STORY_RELATEDNESS_Y_RANGE = [2.2, 3.9]
 STORY_RELATEDNESS_Y_TICKTEXT = ["2.5", "3.0", "3.5"]
 STORY_RELATEDNESS_Y_TICKVALS = [2.5, 3.0, 3.5]
@@ -61,11 +78,77 @@ THEME_SIMILARITY_RANGE = [0.25, 0.47]
 WORD_TIME_Y_RANGE = [2400, 6900]
 
 
-SIGNIFICANCE_THRESHHOLD = 0.05
-P_DISPLAY_THRESHOLD = 0.0001
-
 AXES_COLOR = "#6c6c6c"
 AXES_COLOR_SUPPL = "#000000"
+
+
+# consistent sizing for main plots
+MAIN_PLOTS_ARGS = {
+    "marker_size": 24,
+    "line_width": 7,
+    "axes_linewidth": 7,
+    "x_ticks": "outside",
+    "x_tickwidth": 7,
+    "y_tickwidth": 7,
+    "x_ticklen": None,
+    "y_ticklen": None,
+    "x_tickfont": dict(size=36),
+    "y_tickfont": dict(size=36),
+    "x_title_standoff": None,
+    "y_title_standoff": None,
+    "x_title_font_color": COL1,
+    "y_title_font_color": COL1,
+    "x_title_font_size": 42,
+    "y_title_font_size": 42,
+    "axes_tickcolor": AXES_COLOR,
+    "axes_linecolor": AXES_COLOR,
+    "font_color": COL1,
+    "bgcolor": COL_BG,
+    "axes_gridcolor": "#dddddd",
+    "margin": dict(t=60),
+}
+
+# MAIN_PLOTS_ARGS_REJECTED = {
+#     "marker_size": 5.1,
+#     "line_width": 1.65,
+#     "axes_linewidth": 1.5,
+#     "error_y": dict(
+#         width=2.4,
+#         thickness=0.9,
+#     ),
+#     "x_ticks": "outside",
+#     "x_tickwidth": 2.1,
+#     "y_tickwidth": 2.1,
+#     "x_ticklen": 1.5,
+#     "y_ticklen": 1.5,
+#     "x_tickfont": dict(size=9),
+#     "y_tickfont": dict(size=9),
+#     "x_title_standoff": 7.2,
+#     "y_title_standoff": 7.2,
+#     "x_title_font_color": COL1,
+#     "y_title_font_color": COL1,
+#     "x_title_font_size": 10.8,
+#     "y_title_font_size": 10.8,
+#     "axes_tickcolor": "#000000",
+#     "axes_linecolor": "#000000",
+#     "font_color": COL1,
+#     "bgcolor": COL_BG,
+#     "axes_gridcolor": "#dddddd",
+#     "margin": dict(l=1, r=1, t=1, b=1),
+# }
+
+MAIN_LEGEND_TOP_RIGHT = dict(
+    yanchor="top",
+    y=1,
+    xanchor="right",
+    x=1,
+    font_size=6.2,
+    title=None,
+)
+
+
+SIGNIFICANCE_THRESHHOLD = 0.05
+P_DISPLAY_THRESHOLD = 0.0001
 
 
 LOAD_KEY_MAPS = {
@@ -99,20 +182,22 @@ ALL_STORIES_CONDITIONS_DCT = {
     "carver_original": (
         "condition",
         {
+            "button_press": PRE_POST_NOFILTER,
+            "word_scrambled": PRE_POST_NOFILTER,
+            "button_press_suppress": PRE_POST_NOFILTER,
             "neutralcue2": PRE_POST_NOFILTER,
             "suppress": PRE_POST_NOFILTER,
-            "button_press": PRE_POST_NOFILTER,
-            "button_press_suppress": PRE_POST_NOFILTER,
             "interference_situation": PRE_POST_NOFILTER,
             "interference_tom": PRE_POST_NOFILTER,
-            "interference_geometry": PRE_POST_NOFILTER,
             "interference_story_spr": PRE_POST_NOFILTER,
-            "interference_pause": PRE_POST_NOFILTER,
-            "interference_end_pause": PRE_POST_NOFILTER,
+            "interference_geometry": PRE_POST_NOFILTER,
             "interference_story_spr_end_continued": PRE_POST_NOFILTER,
             "interference_story_spr_end_separated": PRE_POST_NOFILTER,
             "interference_story_spr_end_delayed_continued": PRE_POST_NOFILTER,
-            "word_scrambled": PRE_POST_NOFILTER,
+            "interference_pause": PRE_POST_NOFILTER,
+            "interference_end_pause": PRE_POST_NOFILTER,
+            "multi_day_carver_july": PRE_POST_NOFILTER,
+            "multi_day_july_carver": PRE_POST_NOFILTER,
         },
     ),
     "dark_bedroom": (
@@ -142,6 +227,8 @@ ALL_STORIES_CONDITIONS_DCT_POST = {
             "interference_story_spr_end_delayed_continued": POST_NOFILTER,
             "interference_pause": POST_NOFILTER,
             "interference_end_pause": POST_NOFILTER,
+            "multi_day_carver_july": POST_NOFILTER,
+            "multi_day_july_carver": POST_NOFILTER,
         },
     ),
     "dark_bedroom": (
@@ -166,12 +253,93 @@ RATINGS_CARVER = {
     "file": "all.csv",
 }
 
+RATINGS_CARVER_MULTI_DAY = {
+    "approach": "incontext",
+    "model": "gpt-5-mini-2025-08-07",
+    "story": "carver_original",
+    "file": "ratings.csv",
+}
+
+RATINGS_JULY_MULTI_DAY = {
+    "approach": "incontext",
+    "model": "gpt-5-mini-2025-08-07",
+    "story": "july_original",
+    "file": "ratings.csv",
+}
 
 RATINGS_LIGHTBULB = {
     "approach": "themesim",
     "model": "glove",
     "story": "dark_bedroom",
     "file": "19.csv",
+}
+
+WORD_POSITION_EXACT_MATCH = {
+    "story": "carver_original",
+    "mode": "exact_match",
+    "model_name": "all_matches",
+}
+
+WORD_POSITION_SEMANTIC_MATCH = {
+    "story": "carver_original",
+    "mode": "incontext",
+    "method": "thresholded_3",
+    "model_name": "gpt-5-mini-2025-08-07",
+}
+
+WORD_POSITION_EXACT_MATCH_JULY = {
+    **WORD_POSITION_EXACT_MATCH,
+    "story": "july_original",
+}
+
+WORD_POSITION_SEMANTIC_MATCH_JULY = {
+    **WORD_POSITION_SEMANTIC_MATCH,
+    "story": "july_original",
+}
+
+
+CONDITIONS_RECENCY_CORRELATIONS = [
+    "neutralcue2",
+    "button_press",
+    "multi_day_carver_july",
+    "multi_day_july_carver",
+    "interference_situation",
+    "interference_tom",
+    "interference_geometry",
+    "interference_story_spr",
+    "interference_pause",
+]
+
+
+CONDITIONS_RECENCY_CORRELATIONS_DIFFERENCE = [
+    "interference_situation",
+    "interference_tom",
+    "interference_geometry",
+    "interference_story_spr",
+    "interference_pause",
+]
+
+MATCH_CONFIG_DICT = {
+    "semantic_match": (
+        WORD_POSITION_SEMANTIC_MATCH,
+        "semantic_match",
+        "Semantic match",
+        [(0.0, 1.77)],  # y_ranges_post_pre_30s_bins
+        [(-1.11, 3.6)],  # y_ranges_0_180
+        [(-0.75, 1.11)],  # y_ranges_30s_bins
+        (-1.3, 1.02),  # y_range_across_conditions
+        True,  # not_normalize
+    ),
+    "exact_match": (
+        WORD_POSITION_EXACT_MATCH,
+        "exact_match",
+        "Exact match",
+        [(0.0, 0.75)],  # y_ranges_post_pre_30s_bins
+        [(-1.11, 1.56)],  # y_ranges_0_180
+        [(-0.51, 0.57)],  # y_ranges_30s_bins
+        (-0.84, 0.75),  # y_range_across_conditions
+        False,  # not_normalize
+    ),
 }
 
 
@@ -182,18 +350,20 @@ ORDER_CONDITIONS = {
         "word_scrambled",
         "interference_situation",
         "interference_tom",
-        "interference_geometry",
         "interference_pause",
         "interference_end_pause",
         "interference_story_spr",
         "interference_story_spr_aware",
         "interference_story_spr_unaware",
+        "interference_geometry",
         "suppress",
         "button_press_suppress",
         "neutralcue",  # dark_bedroom condition
         "interference_story_spr_end_continued",
         "interference_story_spr_end_separated",
         "interference_story_spr_end_delayed_continued",
+        "multi_day_carver_july",
+        "multi_day_july_carver",
     ],
     "volition": [
         "unintentional",
@@ -245,6 +415,8 @@ NAME_MAPPING = {
     "interference_story_spr_end_continued": "Continued",
     "interference_story_spr_end_separated": "Separated",
     "interference_story_spr_end_delayed_continued": "Delayed Continued",
+    "multi_day_carver_july": "Multi Day Carver-July",
+    "multi_day_july_carver": "Multi Day July-Carver",
 }
 
 # https://plotly.com/python/marker-style/#custom-marker-symbols
@@ -337,6 +509,7 @@ LEGEND_TOP_RIGHT = dict(
     title=None,
 )
 
+
 LEGEND_TOP_RIGHT_SMALL = dict(
     yanchor="top",
     y=1,
@@ -402,18 +575,20 @@ COLOR_SEQUENCE_ORDERED = [
     "#5CC8FF",  # word scrambled
     "#C701FF",  # situation #DE5CBE
     "#FFAE00",  # tom
-    "#0173DB",  # geometry
     "#8399FF",  # pause
     "#F8AAD6",  # end_pause
     "#09A000",  # interference_story_spr
     "#07CC00",  # interference_story_spr_aware
     "#0A7300",  # interference_story_spr_unaware
+    "#0173DB",  # geometry
     "#A12371",  # suppress
     "#09A000",  # button_press_suppress
     "#ffc000",  # neutralcue (dark_bedroom)
     "#356BEB",  # continued
     "#09E3AC",  # separated
     "#A12371",  # delayed_continued
+    "#F74639",  # multi_day_carver_july
+    "#FFAE00",  # multi_day_july_carver
 ]
 COLOR_SEQUENCE_VOLITION = [
     "#D94E4E",  # unintentional
@@ -471,6 +646,37 @@ REPLACE_COLUMNS_STRATEGIES = {
 }
 
 
+def stats_preview_intro():
+    console.print("\nPreview: Introduction", style="red bold")
+
+    console.print("\n > Number of participants", style="yellow")
+    all_stories_conditions = [
+        ("carver_original", "button_press"),
+        ("carver_original", "word_scrambled"),
+        ("carver_original", "button_press_suppress"),
+        ("carver_original", "neutralcue2"),
+        ("carver_original", "suppress"),
+        ("carver_original", "interference_situation"),
+        ("carver_original", "interference_tom"),
+        ("carver_original", "interference_story_spr"),
+        ("carver_original", "interference_geometry"),
+        ("carver_original", "interference_story_spr_end_continued"),
+        ("carver_original", "interference_story_spr_end_separated"),
+        ("carver_original", "interference_story_spr_end_delayed_continued"),
+        ("carver_original", "interference_pause"),
+        ("carver_original", "interference_end_pause"),
+        ("dark_bedroom", "neutralcue"),
+        ("carver_original", "multi_day_carver_july"),
+        ("carver_original", "multi_day_july_carver"),
+    ]
+
+    n_participants = 0
+    for story, condition in all_stories_conditions:
+        data_df = load_questionnaire({"story": story, "condition": condition})
+        n_participants += len(data_df.index.unique())
+    print(f"Number of participants: {n_participants}\n")
+
+
 def stats_experiment_1_button_press():
     console.print("\nResults 1: Intact vs Scrambled: Statistics", style="red bold")
 
@@ -489,14 +695,14 @@ def stats_experiment_1_button_press():
     console.print("\n > Median words produced", style="yellow")
 
     def print_n_words_wordchain(config: dict, data_df: pd.DataFrame):
-        median_words_produced = (
-            data_df.groupby(["participantID", "position"]).count().median()["word_text"]
+        median_words_produced: float = (
+            data_df.groupby(["participantID", "position"]).count().median()["word_text"]  # type: ignore
         )
-        mean_words_produced = (
-            data_df.groupby(["participantID", "position"]).count().mean()["word_text"]
+        mean_words_produced: float = (
+            data_df.groupby(["participantID", "position"]).count().mean()["word_text"]  # type: ignore
         )
-        sd_words_produced = (
-            data_df.groupby(["participantID", "position"]).count().std()["word_text"]
+        sd_words_produced: float = (
+            data_df.groupby(["participantID", "position"]).count().std()["word_text"]  # type: ignore
         )
 
         print(f"{config['story']} | {NAME_MAPPING[config['condition']]}")
@@ -559,8 +765,8 @@ def stats_experiment_1_button_press():
                             "carver_original": (
                                 "condition",
                                 {
-                                    "button_press": PRE_POST_TIMEFILTER,
-                                    "word_scrambled": PRE_POST_TIMEFILTER,
+                                    "button_press": PRE_POST_NOFILTER,
+                                    "word_scrambled": PRE_POST_NOFILTER,
                                 },
                             )
                         },
@@ -592,9 +798,9 @@ def stats_experiment_1_button_press():
         te_filter=dict(),
         questionnaire_filter=dict(),
     )[["thought_entries"]]
-    mean_sts_post = sts_post.mean().item()
-    median_sts_post = sts_post.median().item()
-    std_sts_post = sts_post.std().item()
+    mean_sts_post = sts_post.mean().item()  # type: ignore
+    median_sts_post = sts_post.median().item()  # type: ignore
+    std_sts_post = sts_post.std().item()  # type: ignore
     print(
         f"Mean (post/story): {round(mean_sts_post, 2)}"
         f" | SD: {round(std_sts_post, 2)}"
@@ -605,9 +811,9 @@ def stats_experiment_1_button_press():
         te_filter=dict(),
         questionnaire_filter=dict(),
     )[["thought_entries"]]
-    mean_sts_pre = sts_pre.mean().item()
-    median_sts_pre = sts_pre.median().item()
-    std_sts_pre = sts_pre.std().item()
+    mean_sts_pre = sts_pre.mean().item()  # type: ignore
+    median_sts_pre = sts_pre.median().item()  # type: ignore
+    std_sts_pre = sts_pre.std().item()  # type: ignore
     print(
         f"Mean (pre/food): {round(mean_sts_pre, 2)}"
         f" | SD: {round(std_sts_pre, 2)}"
@@ -620,9 +826,9 @@ def stats_experiment_1_button_press():
         te_filter={"exclude": ("gt", "timestamp", 30000)},
         questionnaire_filter=dict(),
     )[["thought_entries"]]
-    mean_sts_post_first30 = sts_post_first30[["thought_entries"]].mean().item()
-    median_sts_post_first30 = sts_post_first30[["thought_entries"]].median().item()
-    std_sts_post_first30 = sts_post_first30[["thought_entries"]].std().item()
+    mean_sts_post_first30 = sts_post_first30[["thought_entries"]].mean().item()  # type: ignore
+    median_sts_post_first30 = sts_post_first30[["thought_entries"]].median().item()  # type: ignore
+    std_sts_post_first30 = sts_post_first30[["thought_entries"]].std().item()  # type: ignore
     print(
         f"Mean (post/story): {round(mean_sts_post_first30, 2)}"
         f" | SD: {round(std_sts_post_first30, 2)}"
@@ -633,9 +839,9 @@ def stats_experiment_1_button_press():
         te_filter={"exclude": ("gt", "timestamp", 30000)},
         questionnaire_filter=dict(),
     )[["thought_entries"]]
-    mean_sts_pre_first30 = sts_pre_first30[["thought_entries"]].mean().item()
-    median_sts_pre_first30 = sts_pre_first30[["thought_entries"]].median().item()
-    std_sts_pre_first30 = sts_pre_first30[["thought_entries"]].std().item()
+    mean_sts_pre_first30 = sts_pre_first30[["thought_entries"]].mean().item()  # type: ignore
+    median_sts_pre_first30 = sts_pre_first30[["thought_entries"]].median().item()  # type: ignore
+    std_sts_pre_first30 = sts_pre_first30[["thought_entries"]].std().item()  # type: ignore
     print(
         f"Mean (pre/food): {round(mean_sts_pre_first30, 2)}"
         f" | SD: {round(std_sts_pre_first30, 2)}"
@@ -650,9 +856,9 @@ def stats_experiment_1_button_press():
         },
         questionnaire_filter=dict(),
     )[["thought_entries"]]
-    mean_sts_post_last30 = sts_post_last30[["thought_entries"]].mean().item()
-    median_sts_post_last30 = sts_post_last30[["thought_entries"]].median().item()
-    std_sts_post_last30 = sts_post_last30[["thought_entries"]].std().item()
+    mean_sts_post_last30 = sts_post_last30[["thought_entries"]].mean().item()  # type: ignore
+    median_sts_post_last30 = sts_post_last30[["thought_entries"]].median().item()  # type: ignore
+    std_sts_post_last30 = sts_post_last30[["thought_entries"]].std().item()  # type: ignore
     print(
         f"Mean (post/story): {round(mean_sts_post_last30, 2)}"
         f" | SD: {round(std_sts_post_last30, 2)}"
@@ -665,9 +871,9 @@ def stats_experiment_1_button_press():
         },
         questionnaire_filter=dict(),
     )[["thought_entries"]]
-    mean_sts_pre_last30 = sts_pre_last30[["thought_entries"]].mean().item()
-    median_sts_pre_last30 = sts_pre_last30[["thought_entries"]].median().item()
-    std_sts_pre_last30 = sts_pre_last30[["thought_entries"]].std().item()
+    mean_sts_pre_last30 = sts_pre_last30[["thought_entries"]].mean().item()  # type: ignore
+    median_sts_pre_last30 = sts_pre_last30[["thought_entries"]].median().item()  # type: ignore
+    std_sts_pre_last30 = sts_pre_last30[["thought_entries"]].std().item()  # type: ignore
     print(
         f"Mean (pre/food): {round(mean_sts_pre_last30, 2)}"
         f" | SD: {round(std_sts_pre_last30, 2)}"
@@ -750,9 +956,9 @@ def stats_experiment_1_button_press():
         te_filter={"exclude": ("gte", "timestamp", 30000)},
         questionnaire_filter=dict(),
     )[["thought_entries"]]
-    mean_sts_beginnning = sts_beginning.mean().item()
-    median_sts_beginnning = sts_beginning.median().item()
-    std_sts_beginnning = sts_beginning.std().item()
+    mean_sts_beginnning = sts_beginning.mean().item()  # type: ignore
+    median_sts_beginnning = sts_beginning.median().item()  # type: ignore
+    std_sts_beginnning = sts_beginning.std().item()  # type: ignore
     print(
         f"Mean (beginning): {mean_sts_beginnning} in first 30s ->"
         f" {round(mean_sts_beginnning / 3, 2)} / 10s"
@@ -772,9 +978,9 @@ def stats_experiment_1_button_press():
         te_filter={"exclude": [("lt", "timestamp", 150000)]},
         questionnaire_filter=dict(),
     )[["thought_entries"]]
-    mean_sts_end = sts_end.mean().item()
-    median_sts_end = sts_end.median().item()
-    std_sts_end = sts_end.std().item()
+    mean_sts_end = sts_end.mean().item()  # type: ignore
+    median_sts_end = sts_end.median().item()  # type: ignore
+    std_sts_end = sts_end.std().item()  # type: ignore
     print(
         f"Mean (end): {mean_sts_end} in last 30s -> {round(mean_sts_end / 3, 2)} / 10s"
     )
@@ -795,6 +1001,7 @@ def stats_experiment_1_button_press():
             "x_measure": "story_relatedness",
             "y_measure": "thought_entries",
             "ratings": RATINGS_CARVER,
+            "threshold": P_DISPLAY_THRESHOLD,
         }
     )
 
@@ -806,6 +1013,7 @@ def stats_experiment_1_button_press():
             "position": "post",
             "x_measure": "thought_entries",
             "y_measure": "linger_rating",
+            "threshold": P_DISPLAY_THRESHOLD,
         }
     )
 
@@ -921,6 +1129,7 @@ def plots_fig_1_paradigm_results1():
             # data
             "pID": [1254],  # also good: 1233
             # visuals
+            **MAIN_PLOTS_ARGS,
             "title": None,
             "marker_size": 15,
             "line_width": 5,
@@ -941,8 +1150,6 @@ def plots_fig_1_paradigm_results1():
             "x_rangemode": "tozero",
             "x_range": (0, 110220),
             "text": None,
-            "textfont": dict(color="black", size=18),
-            "textposition": "top center",
             # saving
             "study": STUDY,
             "save": True,
@@ -969,6 +1176,7 @@ def plots_fig_1_paradigm_results1():
             # data
             "pID": [1254],  # also good: 1233
             # visuals
+            **MAIN_PLOTS_ARGS,
             "title": None,
             "marker_size": 15,
             "line_width": 5,
@@ -990,8 +1198,6 @@ def plots_fig_1_paradigm_results1():
             "x_rangemode": "tozero",
             "x_range": (0, 110220),
             "text": None,
-            "textfont": dict(color="black", size=18),
-            "textposition": "top center",
             "symbol": "position",
             "symbol_map": {"pre": "diamond"},
             "line_dash": "position",
@@ -1028,12 +1234,7 @@ def plots_fig_1_paradigm_results1():
             ),
             "verbose": True,
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -1043,33 +1244,18 @@ def plots_fig_1_paradigm_results1():
             "step": 30000,
             "min_bin_n": 1,
             # plot visual config
+            **MAIN_PLOTS_ARGS,
             "title": None,
             "x_title": "Time from start of free association",
             "y_title": "Story relatedness",
             "x_range": [0, 6.05],
             "y_range": STORY_RELATEDNESS_Y_RANGE,
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
-            "x_ticks": "outside",
-            "x_tickwidth": 7,
-            "y_tickwidth": 7,
             "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
             "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
-            "axes_linecolor": AXES_COLOR,
-            "axes_tickcolor": AXES_COLOR,
-            "axes_linewidth": 7,
-            "marker_size": 24,
-            "line_width": 7,
             "x_showgrid": False,
             "y_showgrid": False,
             "color_sequence": COLOR_SEQUENCE_ORDERED,
             "category_orders": ORDER_CONDITIONS,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
             # plot misc config
             "bootstrap": True,
             "n_bootstrap": N_BOOTSTRAP,
@@ -1116,33 +1302,18 @@ def plots_fig_1_paradigm_results1():
             "step": 30000,
             "min_bin_n": 1,
             # plot visual config
+            **MAIN_PLOTS_ARGS,
             "title": None,
             "x_title": "Time from start of free association",
             "y_title": "Story thoughts",
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
-            "x_ticks": "outside",
-            "x_tickwidth": 7,
-            "y_tickwidth": 7,
             "y_tickvals": STORY_THOUGHTS_Y_VALS_TICKS,
             "y_ticktext": STORY_THOUGHTS_Y_VALS_TICKS,
             "y_range": STORY_THOUGHTS_Y_RANGE,
             "x_range": [0, 6.05],
-            "axes_linecolor": AXES_COLOR,
-            "axes_tickcolor": AXES_COLOR,
-            "axes_linewidth": 7,
-            "marker_size": 24,
-            "line_width": 7,
             "x_showgrid": False,
             "y_showgrid": False,
             "color_sequence": COLOR_SEQUENCE_ORDERED,
             "category_orders": ORDER_CONDITIONS,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
             # plot misc config
             "bootstrap": True,
             "n_bootstrap": N_BOOTSTRAP,
@@ -1190,6 +1361,7 @@ def plots_fig_1_paradigm_results1():
             "measure": "linger_rating",
             "summary_func": np.nanmean,
             # plot config
+            **MAIN_PLOTS_ARGS,
             "color": "condition",
             "title": None,
             "nbins": 7,
@@ -1198,7 +1370,7 @@ def plots_fig_1_paradigm_results1():
             "bargap": 0.12,
             "x_range": [0.5, 7.5],
             "y_range": [0, 41],
-            "marker": dict(line_width=1, line_color="black"),
+            "marker": dict(line_width=3, line_color="black"),
             "color_sequence": COLOR_SEQUENCE_ORDERED,
             "category_orders": ORDER_CONDITIONS,
             "showlegend": False,
@@ -1206,20 +1378,10 @@ def plots_fig_1_paradigm_results1():
             "x_tickvals": [1, 2, 3, 4, 5, 6, 7],
             "y_ticktext": [0, 10, 20, 30, 40],
             "y_tickvals": [0, 10, 20, 30, 40],
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
             "x_title": "Self-reported lingering",
             "y_title": "Proportion Participants",
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
             "x_showgrid": False,
             "y_showgrid": False,
-            "axes_linecolor": AXES_COLOR,
-            "axes_tickcolor": AXES_COLOR,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
             "mean_lines": [
                 {
                     "condition": "button_press",
@@ -1286,6 +1448,8 @@ def stats_experiment_2_button_press_suppress():
     console.print("\nPercentages", style="yellow")
     print(f"Percentage unintentional: {round(n_unintentional / n_total * 100, 1):.1f}")
     perc_int_both = (n_intentional + n_both) / n_total * 100
+    print(f"Percentage intentional: {round(n_intentional / n_total * 100, 1):.1f}")
+    print(f"Percentage both: {round(n_both / n_total * 100, 1):.1f}")
     print(f"Percentage intentional + both: {round(perc_int_both, 1):.1f}")
 
     test_two(
@@ -1364,8 +1528,8 @@ def stats_experiment_2_button_press_suppress():
         te_filter={"exclude": ("gte", "timestamp", 30000)},
         questionnaire_filter=dict(),
     )[["thought_entries"]]
-    mean_sts_beginnning = sts_beginning.mean().item()
-    median_sts_beginnning = sts_beginning.median().item()
+    mean_sts_beginnning = sts_beginning.mean().item()  # type: ignore
+    median_sts_beginnning = sts_beginning.median().item()  # type: ignore
     print(
         f"Mean: {round(mean_sts_beginnning, 2)} in first 30s ->"
         f" {round(mean_sts_beginnning / 3, 2)} / 10s"
@@ -1384,8 +1548,8 @@ def stats_experiment_2_button_press_suppress():
         te_filter={"exclude": [("lt", "timestamp", 150000)]},
         questionnaire_filter=dict(),
     )[["thought_entries"]]
-    mean_sts_end = sts_end.mean().item()
-    median_sts_end = sts_end.median().item()
+    mean_sts_end = sts_end.mean().item()  # type: ignore
+    median_sts_end = sts_end.median().item()  # type: ignore
     print(
         f"Mean: {round(mean_sts_end, 2)} in last 30s -> {round(mean_sts_end / 3, 2)}"
         " / 10s"
@@ -1395,7 +1559,8 @@ def stats_experiment_2_button_press_suppress():
     )
 
     console.print(
-        "\n > Suppress: CORR: Story relatedness & story thoughts", style="yellow"
+        "\n > Suppress: CORR: Story relatedness (post) & story thoughts (post)",
+        style="yellow",
     )
     correlate_two(
         {
@@ -1405,11 +1570,12 @@ def stats_experiment_2_button_press_suppress():
             "x_measure": "story_relatedness",
             "y_measure": "thought_entries",
             "ratings": RATINGS_CARVER,
+            "threshold": P_DISPLAY_THRESHOLD,
         }
     )
 
     console.print(
-        "\n > Supprsss: CORR: CONTROL Story relatedness (pre) & story thoughts (post)",
+        "\n > Suppress: CORR: CONTROL Story relatedness (pre) & story thoughts (post)",
         style="yellow",
     )
     correlate_two(
@@ -1420,6 +1586,7 @@ def stats_experiment_2_button_press_suppress():
             "x_measure": "story_relatedness",
             "y_measure": "total_double_press_count_post",
             "ratings": RATINGS_CARVER,
+            "threshold": P_DISPLAY_THRESHOLD,
         }
     )
 
@@ -1433,6 +1600,7 @@ def stats_experiment_2_button_press_suppress():
             "position": "post",
             "x_measure": "thought_entries",
             "y_measure": "linger_rating",
+            "threshold": P_DISPLAY_THRESHOLD,
         }
     )
 
@@ -1517,7 +1685,7 @@ def plots_fig_2_results2():
             "aggregate_on": "condition",
             "normalize": True,
             "measure_name": "volition",
-            "replace_measure": VOLITION_GROUPS,
+            "replace_columns": {"volition": VOLITION_GROUPS},
             "x": "condition",
             "text": "proportion",
             # plot
@@ -1578,7 +1746,7 @@ def plots_fig_2_results2():
             "aggregate_on": "condition",
             "normalize": True,
             "measure_name": "volition",
-            "replace_measure": VOLITION_GROUPS,
+            "replace_columns": {"volition": VOLITION_GROUPS},
             "x": "condition",
             "text": "proportion",
             # plot
@@ -1680,6 +1848,7 @@ def plots_fig_2_results2():
 
     func_plot_by_time(
         config={
+            **MAIN_PLOTS_ARGS,
             "column": "story_relatedness",
             "mode": "relatedness",
             "step": 30000,
@@ -1690,28 +1859,12 @@ def plots_fig_2_results2():
             "y_title": "Story relatedness",
             "x_range": [0, 6.05],
             "y_range": STORY_RELATEDNESS_Y_RANGE,
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
-            "x_ticks": "outside",
-            "x_tickwidth": 7,
-            "y_tickwidth": 7,
             "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
             "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
-            "axes_linewidth": 7,
-            "marker_size": 24,
-            "line_width": 7,
             "x_showgrid": False,
             "y_showgrid": False,
             "color_sequence": COLOR_SEQUENCE_VOLITION_MERGED,
             "category_orders": ORDER_CONDITIONS_VOLITION_MERGED,
-            "axes_linecolor": AXES_COLOR,
-            "axes_tickcolor": AXES_COLOR,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
             # plot misc config
             "bootstrap": True,
             "n_bootstrap": N_BOOTSTRAP,
@@ -1737,6 +1890,7 @@ def plots_fig_2_results2():
     console.print("\n> Self-reported lingering plot", style="yellow")
     func_plot_numeric_measure(
         config={
+            **MAIN_PLOTS_ARGS,
             "measure_name": "linger_rating",
             "x": "condition",
             "title": "",
@@ -1746,22 +1900,12 @@ def plots_fig_2_results2():
             "orientation": "h",
             "x_ticktext": [],
             "x_tickvals": [],
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
             "x_title": "Condition",
             "y_title": "Self-reported lingering",
             "x_title_standoff": 50,
             "bargap": None,
             "x_showgrid": False,
             "y_showgrid": False,
-            "axes_linecolor": AXES_COLOR,
-            "axes_tickcolor": AXES_COLOR,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
             "showlegend": False,
             "hlines": [
                 {
@@ -1830,12 +1974,7 @@ def plots_fig_2_results2():
             ),
             "verbose": True,
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "double_press",
             "column": "double_press",
@@ -1847,32 +1986,17 @@ def plots_fig_2_results2():
             "step": 30000,
             "min_bin_n": 1,
             # plot visual config
+            **MAIN_PLOTS_ARGS,
             "x_title": "Time from start of free association",
             "y_title": "Story thoughts",
             "x_range": [0, 6.05],
             "y_range": STORY_THOUGHTS_Y_RANGE,
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
-            "x_ticks": "outside",
-            "x_tickwidth": 7,
-            "y_tickwidth": 7,
             "y_tickvals": STORY_THOUGHTS_Y_VALS_TICKS,
             "y_ticktext": STORY_THOUGHTS_Y_VALS_TICKS,
-            "axes_linewidth": 7,
-            "marker_size": 24,
-            "line_width": 7,
             "x_showgrid": False,
             "y_showgrid": False,
             "color_sequence": COLOR_SEQUENCE_VOLITION_MERGED,
             "category_orders": ORDER_CONDITIONS_VOLITION_MERGED,
-            "axes_linecolor": AXES_COLOR,
-            "axes_tickcolor": AXES_COLOR,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
             # plot misc config
             "bootstrap": True,
             "n_bootstrap": N_BOOTSTRAP,
@@ -2161,12 +2285,7 @@ def plots_fig_3_results3():
                 },
             ),
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -2174,35 +2293,20 @@ def plots_fig_3_results3():
             "align_timestamp": None,
             "min_bin_n": 300,
             # plot visual config
+            **MAIN_PLOTS_ARGS,
             "title": None,
             "x_title": "Time from start of free association",
             "y_title": "Story relatedness",
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
             # "x_range": [0, 6.05],
             "x_rangemode": "tozero",
             "y_range": STORY_RELATEDNESS_Y_RANGE,
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
-            "x_ticks": "outside",
             "x_skip_first_tick": True,
-            "x_tickwidth": 7,
-            "y_tickwidth": 7,
             "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
             "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
-            "axes_linecolor": AXES_COLOR,
-            "axes_tickcolor": AXES_COLOR,
-            "axes_linewidth": 7,
-            "marker_size": 24,
-            "line_width": 7,
             "x_showgrid": False,
             "y_showgrid": False,
             "color_sequence": COLOR_SEQUENCE_ORDERED,
             "category_orders": ORDER_CONDITIONS,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
             # plot misc config
             "bootstrap": True,
             "n_bootstrap": N_BOOTSTRAP,
@@ -2220,7 +2324,7 @@ def plots_fig_3_results3():
             "width": 990,
             "height": 660,
             "filetype": FILETYPE,
-            "filepostfix": "aligend_fa_start_f3",
+            "filepostfix": "aligned_fa_start_f3",
         }
     )
 
@@ -2249,12 +2353,7 @@ def plots_fig_3_results3():
                 },
             ),
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -2262,27 +2361,16 @@ def plots_fig_3_results3():
             "align_timestamp": "reading_task_end",
             "min_bin_n": 300,
             # plot visual config
+            **MAIN_PLOTS_ARGS,
             "title": None,
             "x_title": "Time from end of original story",
             "y_title": "Story relatedness",
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
             "x_range": None,
+            "x_skip_first_tick": True,
             "x_rangemode": "tozero",
             "y_range": STORY_RELATEDNESS_Y_RANGE,
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
-            "x_ticks": "outside",
-            "x_skip_first_tick": True,
-            "x_tickwidth": 7,
-            "y_tickwidth": 7,
             "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
             "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
-            "axes_linecolor": AXES_COLOR,
-            "axes_tickcolor": AXES_COLOR,
-            "axes_linewidth": 7,
-            "marker_size": 24,
-            "line_width": 7,
             "x_showgrid": False,
             "y_showgrid": False,
             "color_sequence": COLOR_SEQUENCE_ORDERED,
@@ -2341,6 +2429,7 @@ def plots_fig_3_results3():
             "measure_name": "linger_rating",
             "summary_func": np.nanmean,
             # plot config
+            **MAIN_PLOTS_ARGS,
             "title": "",
             "y_range": SUBJECTIVE_LINGERING_Y_RANGE,
             "color_sequence": COLOR_SEQUENCE_ORDERED,
@@ -2350,19 +2439,11 @@ def plots_fig_3_results3():
             "x_ticktext": [],
             "x_tickvals": [],
             "y_tickfont": dict(color=COL1, size=42),
+            # "y_ticktext": [1, 2, 3, 4, 5, 6, 7],
+            # "y_tickvals": [1, 2, 3, 4, 5, 6, 7],
             "x_title": "Condition",
             "y_title": "Self-reported lingering",
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
             "bargap": None,
-            "x_showgrid": False,
-            "y_showgrid": False,
-            "axes_linecolor": AXES_COLOR,
-            "axes_tickcolor": AXES_COLOR,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
             "hlines": [
                 {
                     "y": 2.62,
@@ -2406,6 +2487,7 @@ def stats_experiment_4_continued_separated():
             "align_timestamp": "reading_task_end",
             "exclude": [("gte", "timestamp", 90000), ("lt", "timestamp", 60000)],
             "ratings": RATINGS_CARVER,
+            "threshold": P_DISPLAY_THRESHOLD,
         }
     )
 
@@ -2676,12 +2758,7 @@ def plots_fig_4_results():
                 },
             ),
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -2691,30 +2768,19 @@ def plots_fig_4_results():
             "title": None,
             "x_title": "Time from end of original story",
             "y_title": "<b>Original story</b> relatedness",
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
+            **MAIN_PLOTS_ARGS,
             "x_range": None,
+            "x_skip_first_tick": True,
             "x_rangemode": "tozero",
             "y_range": STORY_RELATEDNESS_Y_RANGE,
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
             "x_ticks": "outside",
-            "x_tickwidth": 7,
-            "y_tickwidth": 7,
             "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
             "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
-            "axes_linewidth": 7,
-            "marker_size": 24,
-            "line_width": 7,
             "x_showgrid": False,
             "y_showgrid": False,
             "color_sequence": COLOR_SEQUENCE_ORDERED,
             "category_orders": ORDER_CONDITIONS,
             "axes_linecolor": COL1,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
             "min_bin_n": 300,
             # plot misc config
             "bootstrap": True,
@@ -2764,30 +2830,19 @@ def plots_fig_4_results():
             "title": None,
             "x_title": "Time from start of free association",
             "y_title": "<b>New story</b> relatedness",
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
+            **MAIN_PLOTS_ARGS,
             "x_range": None,
+            "x_skip_first_tick": True,
             "x_rangemode": "tozero",
             "y_range": THEME_SIMILARITY_RANGE,
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
             "x_ticks": "outside",
-            "x_tickwidth": 7,
-            "y_tickwidth": 7,
             "y_tickvals": None,
             "y_ticktext": None,
-            "axes_linewidth": 7,
-            "marker_size": 24,
-            "line_width": 7,
             "x_showgrid": False,
             "y_showgrid": False,
             "color_sequence": COLOR_SEQUENCE_ORDERED,
             "category_orders": ORDER_CONDITIONS,
             "axes_linecolor": COL1,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
             "min_bin_n": 300,
             # plot misc config
             "bootstrap": True,
@@ -2842,7 +2897,7 @@ def plots_fig_4_results():
             "measure_name": "integration_attempt",
             "summary_func": np.nanmean,
             # plot config
-            # "title": "While reading Part 2 I was<br>trying to relate it to Part 1.",
+            **MAIN_PLOTS_ARGS,
             "title": "",
             "y_range": SUBJECTIVE_LINGERING_Y_RANGE,
             "color_sequence": COLOR_SEQUENCE_ORDERED,
@@ -2851,23 +2906,12 @@ def plots_fig_4_results():
             "showlegend": False,
             "x_ticktext": [],
             "x_tickvals": [],
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
-            "x_tickwidth": 7,
-            "y_tickwidth": 7,
-            "axes_linewidth": 7,
             "x_title": "Condition",
             "y_title": "Effort to integrate",
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
             "bargap": None,
             "x_showgrid": False,
             "y_showgrid": False,
             "axes_linecolor": COL1,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
             "legend": None,
             # bootstrap
             "bootstrap": True,
@@ -2885,6 +2929,1849 @@ def plots_fig_4_results():
     )
 
     return
+
+
+def suppl_stats_persistence_recency_correlations(multiple_comparisons: bool = False):
+    # requires output from
+    # python src/rate_word_position.py -m exact_match -s carver_original
+    # python src/rate_word_position.py -m exact_match -s july_original
+    # python src/rate_word_position.py \
+    #    -m incontext -M gpt-5-mini-2025-08-07 -s carver_original
+    # python src/rate_word_position.py \
+    #    -m incontext -M gpt-5-mini-2025-08-07 -s july_original
+    # (using default batch size 45)
+    # (incontext rating has to be run multiple times to fix the errors
+    # that inevitably happen.)
+    console.print(
+        "\n\nSupplement: Stats: Recency correlations",
+        style="red bold",
+    )
+
+    match_config_dct = MATCH_CONFIG_DICT
+    only_high_sr = False
+    high_sr_threshold = 3.5
+
+    console.print("\nRecency gradient in Baseline? Spearman correlation:", style="blue")
+    recency_corrs_dict: dict[
+        str,
+        dict[
+            str,
+            dict[str, tuple[float, float, float, float, float, int]],
+        ],
+    ] = dict[str, dict[str, dict[str, tuple[float, float, float, float, float, int]]]]()
+    for condition in CONDITIONS_RECENCY_CORRELATIONS:
+        recency_corrs_dict[condition] = dict()
+        for match_config in match_config_dct.values():
+            word_position_dct, _, match_title, _, _, _, _, not_normalize = match_config
+            recency_corrs_dict[condition][match_title] = dict()
+            console.print(f"{condition} - {match_title} full time")
+
+            # hardcoded and not beautiful, but simplicity beats generality here
+            story = "carver_original"
+            ratings = RATINGS_CARVER
+            word_position_dct_ = word_position_dct
+            if condition == "multi_day_july_carver":
+                ratings = RATINGS_JULY_MULTI_DAY
+                story = "july_original"
+                word_position_dct_ = WORD_POSITION_EXACT_MATCH_JULY
+                if match_title == "Semantic match":
+                    word_position_dct_ = WORD_POSITION_SEMANTIC_MATCH_JULY
+            pvalue, statistic, cohens_d, mean1, sd1, n1, _, _, _ = (
+                compute_rank_spearman_correlation(
+                    {
+                        "story": story,
+                        "condition": condition,
+                        "ratings": ratings,
+                        "word_position": word_position_dct_,
+                        "not_normalize": not_normalize,
+                        "exclude": [("gte", "timestamp", 180000)],
+                        "only_high_sr": only_high_sr,
+                        "high_sr_threshold": high_sr_threshold,
+                    },
+                    verbose=False,
+                )
+            )
+            recency_corrs_dict[condition][match_title]["full_time"] = (
+                pvalue,
+                statistic,
+                cohens_d,
+                mean1,
+                sd1,
+                n1,
+            )
+
+            console.print(f"{condition} - {match_title} first 30s")
+            pvalue, statistic, cohens_d, mean1, sd1, n1, _, _, _ = (
+                compute_rank_spearman_correlation(
+                    {
+                        "story": story,
+                        "condition": condition,
+                        "ratings": ratings,
+                        "word_position": word_position_dct_,
+                        "not_normalize": not_normalize,
+                        "exclude": [("gte", "timestamp", 30000)],
+                        "only_high_sr": only_high_sr,
+                        "high_sr_threshold": high_sr_threshold,
+                        "threshold": P_DISPLAY_THRESHOLD,
+                    },
+                    verbose=False,
+                )
+            )
+            recency_corrs_dict[condition][match_title]["first_30s"] = (
+                pvalue,
+                statistic,
+                cohens_d,
+                mean1,
+                sd1,
+                n1,
+            )
+
+    # print table
+    console.print(
+        "\nTable: Recency correlations (multiple comparisons)", style="yellow"
+    )
+    print("    \\begin{tabular}{l | cc | cc}")
+    print(
+        "        "
+        "& \\multicolumn{2}{c|}{Exact Match} & \\multicolumn{2}{c}{Semantic Match}\\\\"
+    )
+    print("        \\hline")
+    print(
+        "        "
+        "& \\makecell{all 180s} & \\makecell{first 30s}"
+        " & \\makecell{all 180s} & \\makecell{first 30s}\\\\"
+    )
+    print("        \\hline")
+    for condition in recency_corrs_dict.keys():
+        print("        \\hline")
+        condition_name = NAME_MAPPING[condition]
+        if condition_name == "Suppress No Button Press":
+            condition_name = "Suppress No\\\\Button Press"
+        elif condition == "multi_day_carver_july":
+            condition_name = "Multi Day\\\\Day 1: Carver"
+        elif condition == "multi_day_july_carver":
+            condition_name = "Multi Day\\\\Day 1: July"
+        print(f"        \\makecell{{{condition_name}}}", end="")
+        for match_title in ["Exact match", "Semantic match"]:
+            for time_range in ["full_time", "first_30s"]:
+                pvalue, statistic, cohens_d, mean1, sd1, n1 = recency_corrs_dict[
+                    condition
+                ][match_title][time_range]
+
+                # p string
+                threshold = P_DISPLAY_THRESHOLD
+                if pvalue < (threshold - 0.2 * threshold):
+                    pstring = f"p < {threshold}".replace("0.", ".")
+                else:
+                    cut_pval = cut_small_value(pvalue)
+                    if pvalue < 0.05:
+                        pstring = f"p = \\mathbf{{{cut_pval}}}"
+                    else:
+                        pstring = f"p = {cut_pval}"
+
+                print(
+                    " &\n        "
+                    f"\\makecell{{$\\rho = {mean1:.2f}\\;({sd1:.2f})$\\\\"
+                    f"$W={statistic:.1f},\\;n = {n1}$"
+                    f"\\\\${pstring}$}}",
+                    end="",
+                )
+        print("\\\\")
+
+    print("    \\end{tabular}")
+
+
+def suppl_stats_persistence_recency_correlations_difference(
+    multiple_comparisons: bool = False,
+):
+    console.print(
+        "\n\nSupplement: Stats: Recency correlations difference",
+        style="red bold",
+    )
+
+    match_config_dct = MATCH_CONFIG_DICT
+    only_high_sr = False
+    high_sr_threshold = 3.5
+
+    recency_corrs_comparison_dict: dict[
+        str,
+        list[
+            tuple[str, str, float, float, float, float, float, int, float, float, int]
+        ],
+    ] = defaultdict(list)
+    for condition in CONDITIONS_RECENCY_CORRELATIONS_DIFFERENCE:
+        for match_config in match_config_dct.values():
+            word_position_dct, _, match_title, _, _, _, _, not_normalize = match_config
+
+            console.print(f"Neutralcue2 vs {condition} - {match_title} full time")
+            pvalue, statistic, cohens_d, mean1, sd1, n1, mean2, sd2, n2 = (
+                compute_rank_spearman_correlation(
+                    {
+                        "story": "carver_original",
+                        "name1": "neutralcue2",
+                        "name2": condition,
+                        "config1": {"condition": "neutralcue2"},
+                        "config2": {"condition": condition},
+                        "ratings": RATINGS_CARVER,
+                        "word_position": word_position_dct,
+                        "not_normalize": not_normalize,
+                        "exclude": [("gte", "timestamp", 180000)],
+                        "only_high_sr": only_high_sr,
+                        "high_sr_threshold": high_sr_threshold,
+                        "threshold": P_DISPLAY_THRESHOLD,
+                    },
+                    verbose=False,
+                )
+            )
+            recency_corrs_comparison_dict[match_title].append(
+                (
+                    condition,
+                    "full_time",
+                    pvalue,
+                    statistic,
+                    cohens_d,
+                    mean1,
+                    sd1,
+                    n1,
+                    mean2,
+                    sd2,
+                    n2,
+                )
+            )
+
+            console.print(f"Neutralcue2 vs {condition} - {match_title} first 30s")
+            pvalue, statistic, cohens_d, mean1, sd1, n1, mean2, sd2, n2 = (
+                compute_rank_spearman_correlation(
+                    {
+                        "story": "carver_original",
+                        "name1": "neutralcue2",
+                        "name2": condition,
+                        "config1": {"condition": "neutralcue2"},
+                        "config2": {"condition": condition},
+                        "ratings": RATINGS_CARVER,
+                        "word_position": word_position_dct,
+                        "not_normalize": not_normalize,
+                        "exclude": [("gte", "timestamp", 30000)],
+                        "only_high_sr": only_high_sr,
+                        "high_sr_threshold": high_sr_threshold,
+                        "threshold": P_DISPLAY_THRESHOLD,
+                    },
+                    verbose=False,
+                )
+            )
+
+            recency_corrs_comparison_dict[match_title].append(
+                (
+                    condition,
+                    "first_30s",
+                    pvalue,
+                    statistic,
+                    cohens_d,
+                    mean1,
+                    sd1,
+                    n1,
+                    mean2,
+                    sd2,
+                    n2,
+                )
+            )
+
+    if multiple_comparisons:
+        for match_title, data_tuples in recency_corrs_comparison_dict.items():
+            # sort for correction by p-value
+            data_tuples.sort(key=lambda x: x[2])
+
+            # threshold p values
+            thresholds = [
+                SIGNIFICANCE_THRESHHOLD / idx for idx in range(len(data_tuples), 0, -1)
+            ]
+
+            console.print(
+                f"Holm-Bonferroni correction (alpha = 0.05): {match_title}",
+                style="yellow",
+            )
+            # place things back into a dict to order them
+            # dict[180s/30s -> dict[condition -> (
+            #     rank, pvalue, statistic, cohens_d, mean1, sd1, n1, mean2, sd2, n2
+            # )]]
+            table_dct: dict[
+                str,
+                dict[
+                    str,
+                    tuple[
+                        int,
+                        float,
+                        float,
+                        float,
+                        float,
+                        float,
+                        float,
+                        int,
+                        float,
+                        float,
+                        int,
+                    ],
+                ],
+            ] = defaultdict(dict)
+            violated = False
+            for rank, (data_tuple, threshold) in enumerate(
+                zip(data_tuples, thresholds)
+            ):
+                if data_tuple[2] >= threshold:
+                    violated = True
+                if violated:
+                    console.print(
+                        f"{data_tuple[0]} ({data_tuple[1]}) -"
+                        " p = {round(data_tuple[2], 4)}"
+                        f" > {round(threshold, 4)}",
+                        style="red",
+                    )
+                else:
+                    console.print(
+                        f"{data_tuple[0]} ({data_tuple[1]}) -"
+                        " p = {round(data_tuple[2], 4)}"
+                        f" < {round(threshold, 4)}",
+                        style="green",
+                    )
+                table_dct[data_tuple[1]][data_tuple[0]] = (
+                    rank + 1,
+                    threshold,
+                    *data_tuple[2:],
+                )
+
+            # table header
+            console.print(
+                f"\nTable: Recency comparisons {match_title} with multiple comparisons",
+                style="yellow",
+            )
+
+            print("    \\begin{tabular}{l | ccccc}")
+            print(
+                "        "
+                "& \\makecell{Time\\\\period}"
+                " & \\makecell{Comparison}"
+                " & \\makecell{p-value\\\\uncorrected}"
+                " & \\makecell{Adjusted\\\\alpha}"
+                " & \\makecell{Rank}\\\\"
+            )
+
+            for time_range in ["full_time", "first_30s"]:
+                print("        \\hline")
+                for condition in CONDITIONS_RECENCY_CORRELATIONS_DIFFERENCE:
+                    condition_name = NAME_MAPPING[condition]
+                    (
+                        rank,
+                        threshold,
+                        pvalue,
+                        statistic,
+                        cohens_d,
+                        mean1,
+                        sd1,
+                        n1,
+                        mean2,
+                        sd2,
+                        n2,
+                    ) = table_dct[time_range][condition]
+
+                    print("        \\hline")
+                    print(f"        \\makecell{{{condition_name}}}", end="")
+                    # p string
+                    display_threshold = P_DISPLAY_THRESHOLD
+                    if pvalue < (display_threshold - 0.2 * display_threshold):
+                        pstring = f"p < {display_threshold}".replace("0.", ".")
+                    else:
+                        if pvalue < 0.09:
+                            pstring = f"p = {cut_small_value(pvalue)}"
+                        else:
+                            pstring = f"p = {str(round(pvalue, 2))[1:]}"
+
+                    initial = condition_name[0].upper()
+                    print(
+                        " &\n        "
+                        f"0s - {time_range}"
+                        f" & \\makecell{{$\\rho = {mean1:.2f}\\;"
+                        f" v\\;\\rho = {mean2:.2f}$\\\\"
+                        f" $n_\\text{{B}} = {n1}$,\\;$n_\\text{{{initial}}} = {n2}$\\\\"
+                        f"$W={statistic:.1f}$}}"
+                        f" & ${pstring}$"
+                        f" & ${str(round(threshold, 4))[1:]}$"
+                        f" & ${rank}$\\\\"
+                    )
+
+            print("    \\end{tabular}\n\n")
+    else:
+        # 1. make a useful table dct
+        # condition
+        #   -> match_title
+        #     -> time_range
+        #       -> pvalue, statistic, cohens_d, mean1, sd1, n1, mean2, sd2, n2
+        table_dct_no_mc: dict[
+            str,
+            dict[
+                str,
+                dict[
+                    str,
+                    tuple[
+                        float,
+                        float,
+                        float,
+                        float,
+                        float,
+                        int,
+                        float,
+                        float,
+                        int,
+                    ],
+                ],
+            ],
+        ] = dict()
+        for match_title in ["Exact match", "Semantic match"]:
+            for (
+                condition,
+                time_range,
+                pvalue,
+                statistic,
+                cohens_d,
+                mean1,
+                sd1,
+                n1,
+                mean2,
+                sd2,
+                n2,
+            ) in recency_corrs_comparison_dict[match_title]:
+                if condition not in table_dct_no_mc:
+                    table_dct_no_mc[condition] = defaultdict(dict)
+                table_dct_no_mc[condition][match_title][time_range] = (
+                    pvalue,
+                    statistic,
+                    cohens_d,
+                    mean1,
+                    sd1,
+                    n1,
+                    mean2,
+                    sd2,
+                    n2,
+                )
+
+        console.print("\nTable: Recency correlation comparisons", style="yellow")
+        print("    \\begin{tabular}{l | cc | cc}")
+        print(
+            "        "
+            "& \\multicolumn{2}{c|}{Exact Match}"
+            " & \\multicolumn{2}{c}{Semantic Match}\\\\"
+        )
+        print("        \\hline")
+        print(
+            "        "
+            "& \\makecell{all 180s} & \\makecell{first 30s}"
+            " & \\makecell{all 180s} & \\makecell{first 30s}\\\\"
+        )
+        print("        \\hline")
+
+        for condition in table_dct_no_mc.keys():
+            print("        \\hline")
+            condition_name = NAME_MAPPING[condition]
+            if condition_name == "Suppress No Button Press":
+                condition_name = "Suppress No\\\\Button Press"
+            elif condition_name == "Suppress No Button Press":
+                condition_name = "Suppress No\\\\Button Press"
+            elif condition == "multi_day_carver_july":
+                condition_name = "Multi Day\\\\Day 1: Carver"
+            elif condition == "multi_day_july_carver":
+                condition_name = "Multi Day\\\\Day 1: July"
+            print(f"        \\makecell{{{condition_name}}}", end="")
+            for match_title in ["Exact match", "Semantic match"]:
+                for time_range in ["full_time", "first_30s"]:
+                    pvalue, statistic, cohens_d, mean1, sd1, n1, mean2, sd2, n2 = (
+                        table_dct_no_mc[condition][match_title][time_range]
+                    )
+
+                    # p string
+                    threshold = P_DISPLAY_THRESHOLD
+                    if pvalue < (threshold - 0.2 * threshold):
+                        pstring = f"p < {threshold}".replace("0.", ".")
+                    else:
+                        cut_pval = cut_small_value(pvalue)
+                        if pvalue < 0.05:
+                            pstring = f"p = \\mathbf{{{cut_pval}}}"
+                        else:
+                            pstring = f"p = {cut_pval}"
+
+                    print(
+                        " &\n        "
+                        f"\\makecell{{$\\rho = {mean1:.2f}\\;"
+                        f" v\\;\\rho = {mean2:.2f}$\\\\"
+                        f"$W={statistic:.1f}$,\\\\"
+                        f"${pstring}$}}",
+                        end="",
+                    )
+            print("\\\\")
+
+        print("    \\end{tabular}")
+
+    return
+
+
+def suppl_intuitive_meaning_match_scores():
+    console.print(
+        "\nSuppl: Intuitive meaning of exact match score (normalized):",
+        style="red bold",
+    )
+
+    only_high_sr = False
+    high_sr_threshold = 3.5
+
+    # get a feeling for what a 'match score' of 1 means
+    # (1) for semantic match (without normalization):
+    #     1 for section X means:
+    #         a single word matches to section,
+    #         or, 2 words match to 2 sections
+    # (2) for exact match (with normalization):
+    #     1 for section X means:
+    #         a single word matches to section / norm_factor.
+    #         norm_factor is  expected_section_length / actual_section_length
+    #         = (sum(n_section_lengths) / n_sections) / section_length
+    # Thus to get a feeling what 'exact match score' means,
+    # (a) print the norm_factor for each section (shows contribution of single word)
+
+    any_word_re = re.compile(r"\b\w+\b", flags=re.IGNORECASE)
+    section_lengths = np.array(
+        [
+            len(any_word_re.findall("\n".join(section_sentences_)))
+            for section_sentences_ in load_story_sentences_grouped(
+                story="carver_original", story_file="sectioned.txt"
+            )
+        ]
+    )
+    expected_section_length = sum(section_lengths) / len(section_lengths)
+    norm_factor = expected_section_length / section_lengths
+    print(
+        "ACTUAL := sum(section_lengths) / len(section_lengths)"
+        " ('actual section length')"
+    )
+    print(
+        "NORM FACTOR := expected_section_length / section_length"
+        " ('how much match score one word gets you)"
+    )
+    print("1-SCORE := 1 / norm_factor ('how many words to get 1-score')")
+    print("0.2-SCORE := 0.2 / norm_factor ('how many words to get 0.2-score')")
+    print()
+    table = Table()
+    table.add_column("ID", style="cyan", justify="right")
+    table.add_column("EXPECTED", style="green", justify="center")
+    table.add_column("ACTUAL", style="magenta", justify="center")
+    table.add_column("NORM FACTOR", style="red", justify="center")
+    table.add_column("1-SCORE", style="blue", justify="center")
+    table.add_column("0.2-SCORE", justify="center")
+    for idx_section, (section_length, norm_factor) in enumerate(
+        zip(section_lengths, norm_factor)
+    ):
+        table.add_row(
+            str(idx_section + 1),
+            f"{expected_section_length:.2f}",
+            f"{section_length:.2f}",
+            f"{norm_factor:.2f}",
+            f"{1 / norm_factor:.2f}",
+            f"{0.2 / norm_factor:.2f}",
+        )
+    console.print(table)
+
+    plot_bars_match_score(
+        config={
+            "story": "carver_original",
+            "condition": "interference_story_spr",
+            "ratings": RATINGS_CARVER,
+            "word_position": WORD_POSITION_EXACT_MATCH,
+            "not_normalize": False,
+            "time_ranges": [(0, 30000)],
+            "only_high_sr": only_high_sr,
+            "high_sr_threshold": high_sr_threshold,
+            # plot visual config
+            "y_ranges": [(None, None)],
+            "x_title": "Segment number",
+            "y_title": "Exact match score",
+            "axes_tickcolor": AXES_COLOR_SUPPL,
+            "axes_linecolor": AXES_COLOR_SUPPL,
+            "title": "",
+            "color_pre": "lightsalmon",
+            "color_post": "indianred",
+            # bootstrap
+            "n_bootstrap": N_BOOTSTRAP,
+            "ci": 0.95,
+            # save
+            "save": True,
+            "width": 400,
+            "height": 360,
+            "study": STUDY_SUPPL,
+            "filetype": FILETYPE,
+            "suffix": (
+                "outisde_exact_match_pre_post_interference_story_0_30_to_get_a_feeling"
+            ),
+        }
+    )
+
+
+def suppl_plots_persistence_recency_correlations():
+    console.print(
+        "\n\nSupplement: Plots: Recency / Separate story segments",
+        style="red bold",
+    )
+
+    match_config_dct = MATCH_CONFIG_DICT
+    only_high_sr = False
+    high_sr_threshold = 3.5
+
+    for match_config in match_config_dct.values():
+        (
+            word_position_dct,
+            match_type,
+            match_title,
+            y_ranges_post_pre_30s_bins,
+            y_ranges_0_180,
+            y_ranges_30s_bins,
+            y_range_across_conditions,
+            not_normalize,
+        ) = match_config
+
+        console.print(f"\n{match_type}", style="blue")
+
+        console.print("\nPost & Pre Match score neutralcue2", style="yellow")
+        plot_bars_match_score(
+            config={
+                "story": "carver_original",
+                "condition": "neutralcue2",
+                "ratings": RATINGS_CARVER,
+                "word_position": word_position_dct,
+                "not_normalize": not_normalize,
+                "time_ranges": [(0, 180000)],
+                "only_high_sr": only_high_sr,
+                "high_sr_threshold": high_sr_threshold,
+                # plot visual config
+                "y_ranges": [(None, None)],
+                "x_title": "Segment number",
+                "y_title": f"{match_title} score",
+                "axes_tickcolor": AXES_COLOR_SUPPL,
+                "axes_linecolor": AXES_COLOR_SUPPL,
+                "title": "",
+                "color_pre": "lightsalmon",
+                "color_post": "indianred",
+                # bootstrap
+                "n_bootstrap": N_BOOTSTRAP,
+                "ci": 0.95,
+                # save
+                "save": True,
+                "width": 400,
+                "height": 360,
+                "study": STUDY_SUPPL,
+                "filetype": FILETYPE,
+                "suffix": f"suppl_{match_type}_pre_post_neutralcue2_0_180",
+            }
+        )
+        plot_bars_match_score(
+            config={
+                "story": "carver_original",
+                "condition": "neutralcue2",
+                "ratings": RATINGS_CARVER,
+                "word_position": word_position_dct,
+                "not_normalize": not_normalize,
+                "time_ranges": [
+                    (0, 30000),
+                    (30000, 60000),
+                    (60000, 90000),
+                    (90000, 120000),
+                    (120000, 150000),
+                    (150000, 180000),
+                ],
+                "only_high_sr": only_high_sr,
+                "high_sr_threshold": high_sr_threshold,
+                # plot visual config
+                "y_ranges": y_ranges_post_pre_30s_bins,
+                "x_title": "Segment number",
+                "y_title": f"{match_title} score",
+                "axes_tickcolor": AXES_COLOR_SUPPL,
+                "axes_linecolor": AXES_COLOR_SUPPL,
+                "title": "",
+                "color_pre": "lightsalmon",
+                "color_post": "indianred",
+                # bootstrap
+                "n_bootstrap": N_BOOTSTRAP,
+                "ci": 0.95,
+                # save
+                "save": True,
+                "width": 1920,
+                "height": 360,
+                "study": STUDY_SUPPL,
+                "filetype": FILETYPE,
+                "suffix": f"suppl_{match_type}_pre_post_neutralcue2_30s_bins",
+            }
+        )
+
+        console.print("\n Post - Pre Match score", style="yellow")
+        for condition in CONDITIONS_RECENCY_CORRELATIONS:
+            color = COLOR_SEQUENCE_ORDERED[
+                ORDER_CONDITIONS["condition"].index(condition)
+            ]
+            # hardcoded and not beautiful, but simplicity beats generality here
+            story = "carver_original"
+            ratings = RATINGS_CARVER
+            word_position_dct_ = word_position_dct
+            x_tickfont = dict(size=21)
+            if condition == "multi_day_july_carver":
+                ratings = RATINGS_JULY_MULTI_DAY
+                story = "july_original"
+                x_tickfont = dict(size=16)
+                word_position_dct_ = WORD_POSITION_EXACT_MATCH_JULY
+                if match_title == "Semantic match":
+                    word_position_dct_ = WORD_POSITION_SEMANTIC_MATCH_JULY
+            plot_bars_match_score(
+                config={
+                    "diff": True,
+                    "story": story,
+                    "condition": condition,
+                    "ratings": ratings,
+                    "word_position": word_position_dct_,
+                    "not_normalize": not_normalize,
+                    "time_ranges": [(0, 180000)],
+                    "only_high_sr": only_high_sr,
+                    "high_sr_threshold": high_sr_threshold,
+                    "show_rho": True,
+                    # plot visual config
+                    "y_ranges": y_ranges_0_180,
+                    "x_title": "Segment number",
+                    "y_title": f"Post - Pre<br>{match_title} score",
+                    "y_title_diff": "",
+                    "x_tickfont": x_tickfont,
+                    "axes_tickcolor": AXES_COLOR_SUPPL,
+                    "axes_linecolor": AXES_COLOR_SUPPL,
+                    "title": "",
+                    "color": color,
+                    # bootstrap
+                    "n_bootstrap": N_BOOTSTRAP,
+                    "ci": 0.95,
+                    # save
+                    "save": True,
+                    "width": 430,
+                    "height": 360,
+                    "study": STUDY_SUPPL,
+                    "filetype": FILETYPE,
+                    "suffix": f"suppl_{match_type}_diff_{condition}_0_180",
+                }
+            )
+            plot_bars_match_score(
+                config={
+                    "diff": True,
+                    "story": story,
+                    "condition": condition,
+                    "ratings": ratings,
+                    "word_position": word_position_dct_,
+                    "not_normalize": not_normalize,
+                    "time_ranges": [
+                        (0, 30000),
+                        (30000, 60000),
+                        (60000, 90000),
+                        (90000, 120000),
+                        (120000, 150000),
+                        (150000, 180000),
+                    ],
+                    "only_high_sr": only_high_sr,
+                    "high_sr_threshold": high_sr_threshold,
+                    "show_rho": True,
+                    # plot visual config
+                    "y_ranges": y_ranges_30s_bins,
+                    "x_title": "Segment number",
+                    "y_title": f"Post - Pre<br>{match_title} score",
+                    "y_title_diff": "",
+                    "x_tickfont": x_tickfont,
+                    "axes_tickcolor": AXES_COLOR_SUPPL,
+                    "axes_linecolor": AXES_COLOR_SUPPL,
+                    "title": "",
+                    "color": color,
+                    # bootstrap
+                    "n_bootstrap": N_BOOTSTRAP,
+                    "ci": 0.95,
+                    # save
+                    "save": True,
+                    "width": 1950,
+                    "height": 360,
+                    "study": STUDY_SUPPL,
+                    "filetype": FILETYPE,
+                    "suffix": f"suppl_{match_type}_diff_{condition}_30s_bins",
+                }
+            )
+
+
+def suppl_plots_persistence_recency_correlations_difference():
+    console.print(
+        "\n\nSupplement: Plots: Recency correlations DIFFERENCE",
+        style="red bold",
+    )
+
+    match_config_dct = MATCH_CONFIG_DICT
+    only_high_sr = False
+    high_sr_threshold = 3.5
+    config_baseline = {
+        "story": "carver_original",
+        "condition": "neutralcue2",
+    }
+
+    for match_config in match_config_dct.values():
+        (
+            word_position_dct,
+            match_type,
+            match_title,
+            y_ranges_post_pre_30s_bins,
+            y_ranges_0_180,
+            y_ranges_30s_bins,
+            y_range_across_conditions,
+            not_normalize,
+        ) = match_config
+
+        console.print(f"\n{match_type}", style="blue")
+
+        console.print(
+            "\nDifference & Diff to Baseline Match score neutralcue2", style="yellow"
+        )
+        for condition in CONDITIONS_RECENCY_CORRELATIONS_DIFFERENCE:
+            color = COLOR_SEQUENCE_ORDERED[
+                ORDER_CONDITIONS["condition"].index(condition)
+            ]
+            plot_bars_match_score(
+                config={
+                    "diff": True,
+                    "story": "carver_original",
+                    "condition": condition,
+                    "ratings": RATINGS_CARVER,
+                    "word_position": word_position_dct,
+                    "not_normalize": not_normalize,
+                    "config_baseline": {
+                        **config_baseline,
+                        "ratings": RATINGS_CARVER,
+                        "word_position": word_position_dct,
+                    },
+                    "time_ranges": [(0, 180000)],
+                    "only_high_sr": only_high_sr,
+                    "high_sr_threshold": high_sr_threshold,
+                    # plot visual config
+                    "y_ranges": y_ranges_0_180,
+                    "x_title": "Segment number",
+                    "y_title": (
+                        f"Difference to Baseline<br>Post - Pre<br>{match_title} score"
+                    ),
+                    "y_title_diff": "",
+                    "axes_tickcolor": AXES_COLOR_SUPPL,
+                    "axes_linecolor": AXES_COLOR_SUPPL,
+                    "title": "",
+                    "color": color,
+                    # bootstrap
+                    "n_bootstrap": N_BOOTSTRAP,
+                    "ci": 0.95,
+                    # save
+                    "save": True,
+                    "width": 460,
+                    "height": 360,
+                    "study": STUDY_SUPPL,
+                    "filetype": FILETYPE,
+                    "suffix": (
+                        f"suppl_{match_type}_diff_to_baseline_{condition}_0_180"
+                    ),
+                }
+            )
+            plot_bars_match_score(
+                config={
+                    "diff": True,
+                    "story": "carver_original",
+                    "condition": condition,
+                    "ratings": RATINGS_CARVER,
+                    "word_position": word_position_dct,
+                    "not_normalize": not_normalize,
+                    "config_baseline": {
+                        **config_baseline,
+                        "ratings": RATINGS_CARVER,
+                        "word_position": word_position_dct,
+                    },
+                    "time_ranges": [
+                        (0, 30000),
+                        (30000, 60000),
+                        (60000, 90000),
+                        (90000, 120000),
+                        (120000, 150000),
+                        (150000, 180000),
+                    ],
+                    "only_high_sr": only_high_sr,
+                    "high_sr_threshold": high_sr_threshold,
+                    # plot visual config
+                    "y_ranges": y_ranges_30s_bins,
+                    "x_title": "Segment number",
+                    "y_title": (
+                        f"Difference to Baseline<br>Post - Pre<br>{match_title} score"
+                    ),
+                    "y_title_diff": "",
+                    "axes_tickcolor": AXES_COLOR_SUPPL,
+                    "axes_linecolor": AXES_COLOR_SUPPL,
+                    "title": "",
+                    "color": color,
+                    # bootstrap
+                    "n_bootstrap": N_BOOTSTRAP,
+                    "ci": 0.95,
+                    # save
+                    "save": True,
+                    "width": 1980,
+                    "height": 360,
+                    "study": STUDY_SUPPL,
+                    "filetype": FILETYPE,
+                    "suffix": (
+                        f"suppl_{match_type}_diff_to_baseline_{condition}_30s_bins"
+                    ),
+                }
+            )
+
+
+def suppl_plots_recency_difference_across_conditions():
+    console.print(
+        "\n\nSupplement: Plots: Recency difference across conditions",
+        style="red bold",
+    )
+
+    match_config_dct = MATCH_CONFIG_DICT
+    only_high_sr = False
+    high_sr_threshold = 3.5
+
+    for match_config in match_config_dct.values():
+        (
+            word_position_dct,
+            match_type,
+            match_title,
+            _,
+            _,
+            _,
+            y_range_across_conditions,
+            not_normalize,
+        ) = match_config
+
+        console.print(f"\n{match_type}", style="blue")
+
+        console.print("\nMatch score diff across conditions", style="yellow")
+        for time_range in [(0, 180000), (0, 30000)]:
+            start_time, end_time = time_range
+            start_str = f"{int(start_time / 1000)}"
+            end_str = f"{int(end_time / 1000)}"
+            plot_match_score_across_conditions(
+                config={
+                    "story": "carver_original",
+                    "ratings": RATINGS_CARVER,
+                    "config_baseline": {
+                        "condition": "neutralcue2",
+                    },
+                    "configs": [
+                        {"condition": condition}
+                        for condition in CONDITIONS_RECENCY_CORRELATIONS_DIFFERENCE
+                    ],
+                    "word_position": word_position_dct,
+                    "not_normalize": not_normalize,
+                    "time_range": time_range,
+                    "only_high_sr": only_high_sr,
+                    "high_sr_threshold": high_sr_threshold,
+                    "color_map": {
+                        "interference_situation": "#C701FF",
+                        "interference_tom": "#FFAE00",
+                        "interference_geometry": "#0173DB",
+                        "interference_story_spr": "#09A000",
+                        # "interference_story_spr_end_continued": "#356BEB",
+                        # "interference_story_spr_end_separated": "#09E3AC",
+                        "interference_pause": "#8399FF",
+                    },
+                    "category_orders": {
+                        "name": CONDITIONS_RECENCY_CORRELATIONS_DIFFERENCE
+                    },
+                    "x_title": "Segment number",
+                    "y_title": (
+                        f"Difference to Baseline<br>Post - Pre<br>{match_title} score"
+                    ),
+                    "title": "",
+                    **MAIN_PLOTS_ARGS,
+                    "y_range": y_range_across_conditions,
+                    "marker_size": 15,
+                    # bootstrap
+                    "n_bootstrap": N_BOOTSTRAP,
+                    "ci": 0.95,
+                    "save": True,
+                    "width": 990,
+                    "height": 600,
+                    "study": STUDY_SUPPL,
+                    "filetype": FILETYPE,
+                    "suffix": (
+                        f"suppl_{match_type}_across_conditions_{start_str}_{end_str}"
+                    ),
+                }
+            )
+
+
+def suppl_stats_persistence_without_recency():
+    console.print(
+        "\n\nSupplement: Stats: Persistence without recency", style="red bold"
+    )
+
+    word_position_dct = load_word_position(WORD_POSITION_SEMANTIC_MATCH)
+
+    removed_sections = [7, 8]
+
+    def get_decrease_score(config: dict) -> tuple[pd.Series, pd.Series, pd.Series]:
+        data_df = load_rated_wordchains(config=config)
+        data_df_removed_sections = remove_words_in_sections(
+            data_df=data_df,
+            word_position_dct=word_position_dct,
+            removed_sections=removed_sections,
+            unique_in_section=False,
+        )
+
+        original_means: pd.Series = data_df.groupby("participantID")[
+            "story_relatedness"
+        ].mean()  # type: ignore
+        removed_sections_means: pd.Series = data_df_removed_sections.groupby(
+            "participantID"
+        )["story_relatedness"].mean()  # type: ignore
+
+        decrease_scores = removed_sections_means - original_means
+        # participants may have all their words removed, and thus won't appear
+        # in the removed sections means - need to remove the nans
+        removed_all_words = decrease_scores.isna()
+        decrease_scores = decrease_scores[~removed_all_words]
+        original_means = original_means[~removed_all_words]  # type: ignore
+        return decrease_scores, original_means, removed_sections_means
+
+    # 1. get decrease score for neutralcue2 from 0 to 30s
+    (
+        neutralcue2_decrease_scores,
+        neutralcue2_original_means,
+        neutralcue2_removed_sections_means,
+    ) = get_decrease_score(
+        {
+            "story": "carver_original",
+            "condition": "neutralcue2",
+            "position": "post",
+            "ratings": RATINGS_CARVER,
+            "align_timestamp": "reading_task_end",
+            "exclude": [
+                ("lt", "timestamp", 0),
+                ("gte", "timestamp", 30000),
+            ],
+        }
+    )
+    # 2. aggregate decrease scores for interference conditions
+    interference_decrease_scores_ls = list()
+    interference_original_means_ls = list()
+    interference_removed_sections_means_ls = list()
+    for condition in [
+        "interference_situation",
+        "interference_tom",
+        "interference_geometry",
+        "interference_story_spr",
+        "interference_pause",
+    ]:
+        (
+            decrease_scores,
+            original_means,
+            removed_sections_means,
+        ) = get_decrease_score(
+            {
+                "story": "carver_original",
+                "condition": condition,
+                "position": "post",
+                "ratings": RATINGS_CARVER,
+                "align_timestamp": "reading_task_end",
+                "exclude": [
+                    ("lt", "timestamp", 30000),
+                    ("gte", "timestamp", 60000),
+                ],
+            }
+        )
+        interference_decrease_scores_ls.append(decrease_scores)
+        interference_original_means_ls.append(original_means)
+        interference_removed_sections_means_ls.append(removed_sections_means)
+    interference_decrease_scores: pd.Series = pd.concat(interference_decrease_scores_ls)  # type: ignore
+    # interference_original_means: pd.Series = pd.concat(interference_original_means_ls)
+    # interference_removed_sections_means: pd.Series = pd.concat(
+    #     interference_removed_sections_means_ls
+    # )  # type: ignore
+
+    # 3. test for difference
+    console.print(
+        (
+            "\nSemantic match: Difference in decrease after"
+            " removing sections 8 & 9 stronger in Baseline?"
+        ),
+        style="yellow",
+    )
+    test_two(
+        {
+            "name1": "Baseline (0s - 30s)",
+            "name2": "Interference (30s - 60s, pooled)",
+            "measure": "story_relatedness",
+            "test_type": "mwu",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+        data1_sr=neutralcue2_decrease_scores,
+        data2_sr=interference_decrease_scores,
+    )
+
+    # console.print(
+    #     (
+    #         "\nSemantic match: Difference in baseline and interference"
+    #         " for original data."
+    #     ),
+    #     style="yellow",
+    # )
+    # test_two(
+    #     {
+    #         "name1": "Baseline (0s - 30s)",
+    #         "name2": "Interference (30s - 60s, pooled)",
+    #         "measure": "story_relatedness",
+    #         "test_type": "mwu",
+    #         "threshold": P_DISPLAY_THRESHOLD,
+    #     },
+    #     data1_sr=neutralcue2_original_means,
+    #     data2_sr=interference_original_means,
+    # )
+
+    # console.print(
+    #     (
+    #         "\nSemantic match: Difference in baseline and interference"
+    #         " for removed sections data."
+    #     ),
+    #     style="yellow",
+    # )
+    # test_two(
+    #     {
+    #         "name1": "Baseline (0s - 30s)",
+    #         "name2": "Interference (30s - 60s, pooled)",
+    #         "measure": "story_relatedness",
+    #         "test_type": "mwu",
+    #         "threshold": P_DISPLAY_THRESHOLD,
+    #     },
+    #     data1_sr=neutralcue2_removed_sections_means,
+    #     data2_sr=interference_removed_sections_means,
+    # )
+
+
+def suppl_plots_persistence_without_recency():
+    console.print(
+        "\nPlot main persistence curve without section 8 & 9", style="red bold"
+    )
+
+    # sections are 0-indexed, 8 -> section 9
+    removed_sections = [7, 8]
+
+    original_symbol = "x"
+    original_line_dash = "dot"
+
+    removed_section_symbol = "circle"
+    removed_section_line_dash = "solid"
+    show_original = True
+    width = 1350
+
+    marker_size = 12
+    marker_line = dict(width=2, color="DarkSlateGrey")
+    line_width = 4
+
+    console.print("\nExact match", style="yellow")
+    plot_by_time_shifted_without_section(
+        {
+            "load_spec": (
+                "all",
+                {
+                    "all": (
+                        "story",
+                        {
+                            "carver_original": (
+                                "condition",
+                                {
+                                    "neutralcue2": POST_NOFILTER,
+                                    "interference_geometry": POST_NOFILTER,
+                                    "interference_situation": POST_NOFILTER,
+                                    "interference_tom": POST_NOFILTER,
+                                    "interference_story_spr": POST_NOFILTER,
+                                },
+                            )
+                        },
+                    )
+                },
+            ),
+            "aggregate_on": "story",
+            "ratings": RATINGS_CARVER,
+            "word_position": WORD_POSITION_EXACT_MATCH,
+            "mode": "relatedness",
+            "column": "story_relatedness",
+            "removed_sections": removed_sections,
+            "step": 30000,
+            # only remove words that are exclusively in the removed sections
+            # -> these words are so seldom that the difference between
+            # original and removed graph is basically zero.
+            "unique_in_section": False,
+            # make sure that original only shows participants that are also present
+            # in the removed section data
+            "equalize_participants_on_column": "group",
+            "align_timestamp": "reading_task_end",
+            "min_bin_n": 200,
+            "show_original": show_original,
+            "color": "condition",
+            "color_sequence": COLOR_SEQUENCE_ORDERED,
+            "category_orders": ORDER_CONDITIONS,
+            "symbol": "group",
+            "symbol_map": {
+                "original": original_symbol,
+                "removed section": removed_section_symbol,
+            },
+            "line_dash": "group",
+            "line_dash_map": {
+                "original": original_line_dash,
+                "removed section": removed_section_line_dash,
+            },
+            "title": None,
+            # axes
+            "x_title": "Time from end of reading",
+            "y_title": ("Story relatedness"),
+            "x_title_font_size": 42,
+            "y_title_font_size": 42,
+            "x_range": None,
+            "x_rangemode": "tozero",
+            "y_range": STORY_RELATEDNESS_Y_RANGE,
+            "x_tickfont": dict(size=36),
+            "y_tickfont": dict(size=36),
+            "x_ticks": "outside",
+            "x_skip_first_tick": False,
+            "x_tickwidth": 7,
+            "y_tickwidth": 7,
+            "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
+            "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
+            "axes_linecolor": AXES_COLOR_SUPPL,
+            "axes_tickcolor": AXES_COLOR_SUPPL,
+            "axes_linewidth": 7,
+            "marker_size": marker_size,
+            "marker_line": marker_line,
+            "line_width": line_width,
+            "x_showgrid": False,
+            "y_showgrid": False,
+            "x_title_font_color": COL1,
+            "y_title_font_color": COL1,
+            "font_color": COL1,
+            "bgcolor": COL_BG,
+            # legend
+            "show": False,
+            "showlegend": False,
+            # bootstrap
+            "bootstrap": True,
+            "n_bootstrap": N_BOOTSTRAP,
+            "ci": 0.95,
+            # saving
+            "save": True,
+            "study": STUDY_SUPPL,
+            "width": width,
+            "height": 660,
+            "filetype": FILETYPE,
+            "filepostfix": "suppl_reading_end_no_exact_match_8_9",
+        }
+    )
+
+    console.print("\nSemantic match", style="yellow")
+    plot_by_time_shifted_without_section(
+        {
+            "load_spec": (
+                "all",
+                {
+                    "all": (
+                        "story",
+                        {
+                            "carver_original": (
+                                "condition",
+                                {
+                                    "neutralcue2": POST_NOFILTER,
+                                    "interference_geometry": POST_NOFILTER,
+                                    "interference_situation": POST_NOFILTER,
+                                    "interference_tom": POST_NOFILTER,
+                                    "interference_story_spr": POST_NOFILTER,
+                                },
+                            )
+                        },
+                    )
+                },
+            ),
+            "aggregate_on": "story",
+            "ratings": RATINGS_CARVER,
+            "word_position": WORD_POSITION_SEMANTIC_MATCH,
+            "mode": "relatedness",
+            "column": "story_relatedness",
+            # sections are 0-indexed, 8 -> section 9
+            "removed_sections": removed_sections,
+            "step": 30000,
+            "equalize_participants_on_column": "group",
+            "align_timestamp": "reading_task_end",
+            "min_bin_n": 200,
+            "show_original": show_original,
+            "color": "condition",
+            "color_sequence": COLOR_SEQUENCE_ORDERED,
+            "category_orders": ORDER_CONDITIONS,
+            "symbol": "group",
+            "symbol_map": {
+                "original": original_symbol,
+                "removed section": removed_section_symbol,
+            },
+            "line_dash": "group",
+            "line_dash_map": {
+                "original": original_line_dash,
+                "removed section": removed_section_line_dash,
+            },
+            "title": None,
+            # axes
+            "x_title": "Time from end of reading",
+            "y_title": ("Story relatedness"),
+            "x_title_font_size": 42,
+            "y_title_font_size": 42,
+            "x_range": None,
+            "x_rangemode": "tozero",
+            "y_range": STORY_RELATEDNESS_Y_RANGE,
+            "x_tickfont": dict(size=36),
+            "y_tickfont": dict(size=36),
+            "x_ticks": "outside",
+            "x_skip_first_tick": False,
+            "x_tickwidth": 7,
+            "y_tickwidth": 7,
+            "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
+            "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
+            "axes_linecolor": AXES_COLOR_SUPPL,
+            "axes_tickcolor": AXES_COLOR_SUPPL,
+            "axes_linewidth": 7,
+            "marker_size": marker_size,
+            "marker_line": marker_line,
+            "line_width": line_width,
+            "x_showgrid": False,
+            "y_showgrid": False,
+            "x_title_font_color": COL1,
+            "y_title_font_color": COL1,
+            "font_color": COL1,
+            "bgcolor": COL_BG,
+            # legend
+            "show": False,
+            "showlegend": False,
+            # bootstrap
+            "bootstrap": True,
+            "n_bootstrap": N_BOOTSTRAP,
+            "ci": 0.95,
+            # saving
+            "save": True,
+            "study": STUDY_SUPPL,
+            "width": width,
+            "height": 660,
+            "filetype": FILETYPE,
+            "filepostfix": "suppl_reading_end_no_semantic_match_8_9",
+        }
+    )
+
+    console.print("\nExact match - fa start", style="yellow")
+    plot_by_time_shifted_without_section(
+        {
+            "load_spec": (
+                "all",
+                {
+                    "all": (
+                        "story",
+                        {
+                            "carver_original": (
+                                "condition",
+                                {
+                                    "neutralcue2": POST_NOFILTER,
+                                    "interference_geometry": POST_NOFILTER,
+                                    "interference_situation": POST_NOFILTER,
+                                    "interference_tom": POST_NOFILTER,
+                                    "interference_story_spr": POST_NOFILTER,
+                                },
+                            )
+                        },
+                    )
+                },
+            ),
+            "aggregate_on": "story",
+            "ratings": RATINGS_CARVER,
+            "word_position": WORD_POSITION_EXACT_MATCH,
+            "mode": "relatedness",
+            "column": "story_relatedness",
+            "removed_sections": removed_sections,
+            "step": 30000,
+            "equalize_participants_on_column": "group",
+            "align_timestamp": None,
+            "min_bin_n": 200,
+            "show_original": show_original,
+            "color": "condition",
+            "color_sequence": COLOR_SEQUENCE_ORDERED,
+            "category_orders": ORDER_CONDITIONS,
+            "symbol": "group",
+            "symbol_map": {
+                "original": original_symbol,
+                "removed section": removed_section_symbol,
+            },
+            "line_dash": "group",
+            "line_dash_map": {
+                "original": original_line_dash,
+                "removed section": removed_section_line_dash,
+            },
+            "title": None,
+            # axes
+            "x_title": "Time from start of free association",
+            "y_title": ("Story relatedness"),
+            "x_title_font_size": 42,
+            "y_title_font_size": 42,
+            "x_range": None,
+            "x_rangemode": "tozero",
+            "y_range": STORY_RELATEDNESS_Y_RANGE,
+            "x_tickfont": dict(size=36),
+            "y_tickfont": dict(size=36),
+            "x_ticks": "outside",
+            "x_skip_first_tick": False,
+            "x_tickwidth": 7,
+            "y_tickwidth": 7,
+            "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
+            "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
+            "axes_linecolor": AXES_COLOR_SUPPL,
+            "axes_tickcolor": AXES_COLOR_SUPPL,
+            "axes_linewidth": 7,
+            "marker_size": marker_size,
+            "marker_line": marker_line,
+            "line_width": line_width,
+            "x_showgrid": False,
+            "y_showgrid": False,
+            "x_title_font_color": COL1,
+            "y_title_font_color": COL1,
+            "font_color": COL1,
+            "bgcolor": COL_BG,
+            # legend
+            "show": False,
+            "showlegend": False,
+            # bootstrap
+            "bootstrap": True,
+            "n_bootstrap": N_BOOTSTRAP,
+            "ci": 0.95,
+            # saving
+            "save": True,
+            "study": STUDY_SUPPL,
+            "width": width,
+            "height": 660,
+            "filetype": FILETYPE,
+            "filepostfix": "suppl_fa_start_no_exact_match_8_9",
+        }
+    )
+
+    console.print("\nSemantic match - fa start", style="yellow")
+    plot_by_time_shifted_without_section(
+        {
+            "load_spec": (
+                "all",
+                {
+                    "all": (
+                        "story",
+                        {
+                            "carver_original": (
+                                "condition",
+                                {
+                                    "neutralcue2": POST_NOFILTER,
+                                    "interference_geometry": POST_NOFILTER,
+                                    "interference_situation": POST_NOFILTER,
+                                    "interference_tom": POST_NOFILTER,
+                                    "interference_story_spr": POST_NOFILTER,
+                                },
+                            )
+                        },
+                    )
+                },
+            ),
+            "aggregate_on": "story",
+            "ratings": RATINGS_CARVER,
+            "word_position": WORD_POSITION_SEMANTIC_MATCH,
+            "mode": "relatedness",
+            "column": "story_relatedness",
+            # sections are 0-indexed, 8 -> section 9
+            "removed_sections": removed_sections,
+            "step": 30000,
+            "equalize_participants_on_column": "group",
+            "align_timestamp": None,
+            "min_bin_n": 200,
+            "show_original": show_original,
+            "color": "condition",
+            "color_sequence": COLOR_SEQUENCE_ORDERED,
+            "category_orders": ORDER_CONDITIONS,
+            "symbol": "group",
+            "symbol_map": {
+                "original": original_symbol,
+                "removed section": removed_section_symbol,
+            },
+            "line_dash": "group",
+            "line_dash_map": {
+                "original": original_line_dash,
+                "removed section": removed_section_line_dash,
+            },
+            "title": None,
+            # axes
+            "x_title": "Time from start of free association",
+            "y_title": ("Story relatedness"),
+            "x_title_font_size": 42,
+            "y_title_font_size": 42,
+            "x_range": None,
+            "x_rangemode": "tozero",
+            "y_range": STORY_RELATEDNESS_Y_RANGE,
+            "x_tickfont": dict(size=36),
+            "y_tickfont": dict(size=36),
+            "x_ticks": "outside",
+            "x_skip_first_tick": False,
+            "x_tickwidth": 7,
+            "y_tickwidth": 7,
+            "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
+            "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
+            "axes_linecolor": AXES_COLOR_SUPPL,
+            "axes_tickcolor": AXES_COLOR_SUPPL,
+            "axes_linewidth": 7,
+            "marker_size": marker_size,
+            "marker_line": marker_line,
+            "line_width": line_width,
+            "x_showgrid": False,
+            "y_showgrid": False,
+            "x_title_font_color": COL1,
+            "y_title_font_color": COL1,
+            "font_color": COL1,
+            "bgcolor": COL_BG,
+            # legend
+            "show": False,
+            "showlegend": False,
+            # bootstrap
+            "bootstrap": True,
+            "n_bootstrap": N_BOOTSTRAP,
+            "ci": 0.95,
+            # saving
+            "save": True,
+            "study": STUDY_SUPPL,
+            "width": width,
+            "height": 660,
+            "filetype": FILETYPE,
+            "filepostfix": "suppl_fa_start_no_semantic_match_8_9",
+        }
+    )
+
+
+def suppl_plots_match_score_by_sections():
+    for condition in [
+        "neutralcue2",
+        "interference_situation",
+        "interference_tom",
+        "interference_geometry",
+        "interference_story_spr",
+        "interference_pause",
+        "button_press",
+        "button_press_suppress",
+        "suppress",
+    ]:
+        console.print(f"{condition} - exact match", style="yellow")
+        plot_match_score_by_time_sections(
+            {
+                "load_spec": (
+                    "all",
+                    {
+                        "all": (
+                            "story",
+                            {
+                                "carver_original": (
+                                    "condition",
+                                    {condition: POST_NOFILTER},
+                                )
+                            },
+                        )
+                    },
+                ),
+                "aggregate_on": "position",
+                "ratings": RATINGS_CARVER,
+                "word_position": WORD_POSITION_EXACT_MATCH,
+                "mode": "exact_match_score",
+                "step": 30000,
+                "normalize": True,
+                "min_bin_n": 200,
+                "title": f"{condition}, normalized",
+                "x_title": "Time from start of free association",
+                "y_title": "Post - Pre<br>Exact match score",
+                "x_range": None,
+                "x_rangemode": "tozero",
+                "y_range": (-0.03, 0.06),
+                "x_title_font_size": 42,
+                "y_title_font_size": 42,
+                "x_tickfont": dict(size=36),
+                "y_tickfont": dict(size=36),
+                "x_ticks": "outside",
+                "y_zeroline": True,
+                # bootstrap
+                "bootstrap": True,
+                "n_bootstrap": N_BOOTSTRAP,
+                "ci": 0.95,
+                # legend
+                "showlegend": True,
+                "legend": LEGEND_TOP_RIGHT_SMALL,
+                # saving
+                "save": True,
+                "study": STUDY_SUPPL,
+                "width": 1200,
+                "height": 660,
+                "filepostfix": "suppl_word_position_by_section_normalized_fa_start",
+            }
+        )
+        plot_match_score_by_time_sections(
+            {
+                "load_spec": (
+                    "all",
+                    {
+                        "all": (
+                            "story",
+                            {
+                                "carver_original": (
+                                    "condition",
+                                    {condition: POST_NOFILTER},
+                                )
+                            },
+                        )
+                    },
+                ),
+                "aggregate_on": "position",
+                "ratings": RATINGS_CARVER,
+                "word_position": WORD_POSITION_EXACT_MATCH,
+                "mode": "exact_match_score",
+                "step": 30000,
+                "align_timestamp": "reading_task_end",
+                "normalize": True,
+                "min_bin_n": 200,
+                "title": f"{condition}, normalized",
+                "x_title": "Time from end of reading",
+                "y_title": "Post - Pre<br>Exact match score",
+                "x_range": None,
+                "x_rangemode": "tozero",
+                "y_range": (-0.03, 0.06),
+                "x_title_font_size": 42,
+                "y_title_font_size": 42,
+                "x_tickfont": dict(size=36),
+                "y_tickfont": dict(size=36),
+                "x_ticks": "outside",
+                "y_zeroline": True,
+                # bootstrap
+                "bootstrap": True,
+                "n_bootstrap": N_BOOTSTRAP,
+                "ci": 0.95,
+                # legend
+                "showlegend": True,
+                "legend": LEGEND_TOP_RIGHT_SMALL,
+                # saving
+                "save": True,
+                "study": STUDY_SUPPL,
+                "width": 1200,
+                "height": 660,
+                "filepostfix": "suppl_word_position_by_section_normalized_reading_end",
+            }
+        )
+
+        console.print(f"{condition} - semantic match", style="yellow")
+        plot_match_score_by_time_sections(
+            {
+                "load_spec": (
+                    "all",
+                    {
+                        "all": (
+                            "story",
+                            {
+                                "carver_original": (
+                                    "condition",
+                                    {condition: POST_NOFILTER},
+                                )
+                            },
+                        )
+                    },
+                ),
+                "aggregate_on": "position",
+                "ratings": RATINGS_CARVER,
+                "word_position": WORD_POSITION_SEMANTIC_MATCH,
+                "mode": "semantic_match_score",
+                "step": 30000,
+                "normalize": False,
+                "min_bin_n": 200,
+                "title": f"{condition}",
+                "x_title": "Time from start of free association",
+                "y_title": "Post - Pre<br>Semantic match score",
+                "x_range": None,
+                "x_rangemode": "tozero",
+                "y_range": (-0.04, 0.15),
+                "x_title_font_size": 42,
+                "y_title_font_size": 42,
+                "x_tickfont": dict(size=36),
+                "y_tickfont": dict(size=36),
+                "x_ticks": "outside",
+                "y_zeroline": True,
+                # bootstrap
+                "bootstrap": True,
+                "n_bootstrap": N_BOOTSTRAP,
+                "ci": 0.95,
+                # legend
+                "showlegend": True,
+                "legend": LEGEND_TOP_RIGHT_SMALL,
+                # saving
+                "save": True,
+                "study": STUDY_SUPPL,
+                "width": 1200,
+                "height": 660,
+                "filepostfix": "suppl_word_position_by_section_fa_start",
+            }
+        )
+        plot_match_score_by_time_sections(
+            {
+                "load_spec": (
+                    "all",
+                    {
+                        "all": (
+                            "story",
+                            {
+                                "carver_original": (
+                                    "condition",
+                                    {condition: POST_NOFILTER},
+                                )
+                            },
+                        )
+                    },
+                ),
+                "aggregate_on": "position",
+                "ratings": RATINGS_CARVER,
+                "word_position": WORD_POSITION_SEMANTIC_MATCH,
+                "mode": "semantic_match_score",
+                "step": 30000,
+                "align_timestamp": "reading_task_end",
+                "normalize": False,
+                "min_bin_n": 200,
+                "title": f"{condition}",
+                "x_title": "Time from end of reading",
+                "y_title": "Post - Pre<br>Semantic match score",
+                "x_range": None,
+                "x_rangemode": "tozero",
+                "y_range": (-0.04, 0.15),
+                "x_title_font_size": 42,
+                "y_title_font_size": 42,
+                "x_tickfont": dict(size=36),
+                "y_tickfont": dict(size=36),
+                "x_ticks": "outside",
+                "y_zeroline": True,
+                # bootstrap
+                "bootstrap": True,
+                "n_bootstrap": N_BOOTSTRAP,
+                "ci": 0.95,
+                # legend
+                "showlegend": True,
+                "legend": LEGEND_TOP_RIGHT_SMALL,
+                # saving
+                "save": True,
+                "study": STUDY_SUPPL,
+                "width": 1200,
+                "height": 660,
+                "filepostfix": "suppl_word_position_by_section_reading_end",
+            }
+        )
+        plot_match_score_by_time_sections(
+            {
+                "load_spec": (
+                    "all",
+                    {
+                        "all": (
+                            "story",
+                            {
+                                "carver_original": (
+                                    "condition",
+                                    {condition: POST_NOFILTER},
+                                )
+                            },
+                        )
+                    },
+                ),
+                "aggregate_on": "position",
+                "ratings": RATINGS_CARVER,
+                "word_position": WORD_POSITION_SEMANTIC_MATCH,
+                "mode": "semantic_match_score",
+                "step": 30000,
+                "normalize": True,
+                "min_bin_n": 200,
+                "title": f"{condition}, normalized",
+                "x_title": "Time from start of free association",
+                "y_title": "Post - Pre<br>Semantic match score",
+                "x_range": None,
+                "x_rangemode": "tozero",
+                "y_range": (-0.04, 0.15),
+                "x_title_font_size": 42,
+                "y_title_font_size": 42,
+                "x_tickfont": dict(size=36),
+                "y_tickfont": dict(size=36),
+                "x_ticks": "outside",
+                "y_zeroline": True,
+                # bootstrap
+                "bootstrap": True,
+                "n_bootstrap": N_BOOTSTRAP,
+                "ci": 0.95,
+                # legend
+                "showlegend": True,
+                "legend": LEGEND_TOP_RIGHT_SMALL,
+                # saving
+                "save": True,
+                "study": STUDY_SUPPL,
+                "width": 1200,
+                "height": 660,
+                "filepostfix": "suppl_word_position_by_section_normalized_fa_start",
+            }
+        )
+        plot_match_score_by_time_sections(
+            {
+                "load_spec": (
+                    "all",
+                    {
+                        "all": (
+                            "story",
+                            {
+                                "carver_original": (
+                                    "condition",
+                                    {condition: POST_NOFILTER},
+                                )
+                            },
+                        )
+                    },
+                ),
+                "aggregate_on": "position",
+                "ratings": RATINGS_CARVER,
+                "word_position": WORD_POSITION_SEMANTIC_MATCH,
+                "mode": "semantic_match_score",
+                "step": 30000,
+                "align_timestamp": "reading_task_end",
+                "normalize": True,
+                "min_bin_n": 200,
+                "title": f"{condition}, normalized",
+                "x_title": "Time from end of reading",
+                "y_title": "Post - Pre<br>Semantic match score",
+                "x_range": None,
+                "x_rangemode": "tozero",
+                "y_range": (-0.04, 0.15),
+                "x_title_font_size": 42,
+                "y_title_font_size": 42,
+                "x_tickfont": dict(size=36),
+                "y_tickfont": dict(size=36),
+                "x_ticks": "outside",
+                "y_zeroline": True,
+                # bootstrap
+                "bootstrap": True,
+                "n_bootstrap": N_BOOTSTRAP,
+                "ci": 0.95,
+                # legend
+                "showlegend": True,
+                "legend": LEGEND_TOP_RIGHT_SMALL,
+                # saving
+                "save": True,
+                "study": STUDY_SUPPL,
+                "width": 1200,
+                "height": 660,
+                "filepostfix": "suppl_word_position_by_section_normalized_reading_end",
+            }
+        )
 
 
 def suppl_stats_plots_new_story_separated_integrated():
@@ -3002,12 +4889,7 @@ def suppl_stats_plots_new_story_separated_integrated():
                 },
             ),
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             "key_maps": {
                 "condition": {
                     "interference_story_spr_separated": "interference_story_spr",
@@ -3083,18 +4965,14 @@ def suppl_methods_experiment_overview():
 
     def func_print_n_participants(config: dict, data_df: pd.DataFrame):
         n_participants = len(data_df.index.unique())
-        print(f"{config['story']} | {config['condition']} | N = {n_participants}")
+        name = NAME_MAPPING[config["condition"]]
+        print(f"{config['story']} | {name} | N = {n_participants}")
 
     aggregator(
         config={
             "load_spec": ("all", {"all": ("story", ALL_STORIES_CONDITIONS_DCT)}),
             "aggregate_on": "condition",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             "corrections": True,
             "column": "story_relatedness",
         },
@@ -3155,8 +5033,8 @@ def suppl_methods_procedure_numbers():
     )
 
 
-def suppl_stats_words_generated():
-    print("Supplemental Methods: Experiment 1: Words generated.")
+def suppl_methods_stats_words_rated():
+    console.print("\nSupplemental Methods: Words rated.", style="red bold")
 
     def func_load_words(config: dict) -> pd.DataFrame:
         return load_wordchains(config)
@@ -3191,18 +5069,17 @@ def suppl_stats_words_generated():
         config={
             "load_spec": ("all", {"all": ("story", ALL_STORIES_CONDITIONS_DCT)}),
             "aggregate_on": "all",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             "corrections": True,
             "column": "story_relatedness",
         },
         load_func=func_load_rated_words,
         call_func=print_n_unique_words,
     )
+
+
+def suppl_methods_stats_words_generated():
+    console.print("\nSupplemental Methods: Words generated.", style="red bold")
 
     # across all
     compute_word_stats(
@@ -3213,12 +5090,7 @@ def suppl_stats_words_generated():
             ),
             "aggregate_on": "all",
             "column": "story_relatedness",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             "study": STUDY,
         }
     )
@@ -3231,12 +5103,7 @@ def suppl_stats_words_generated():
             ),
             "aggregate_on": "condition",
             "column": "story_relatedness",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             "study": STUDY,
         }
     )
@@ -3328,12 +5195,7 @@ def suppl_plots_stats_volition():
             ),
             "verbose": True,
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -3407,12 +5269,7 @@ def suppl_plots_stats_volition():
             ),
             "verbose": True,
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -3490,12 +5347,7 @@ def suppl_plots_stats_volition():
             ),
             "verbose": True,
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "double_press",
             "column": "double_press",
@@ -3508,7 +5360,7 @@ def suppl_plots_stats_volition():
             "min_bin_n": 1,
             "replace_columns": REPLACE_COLUMNS_VOLITION,
             # plot visual config
-            "x_title": "Time from start of free association",
+            "x_title": "Time from start of of free association",
             "y_title": "Story thoughts",
             "x_range": [0, 6.05],
             "y_range": STORY_THOUGHTS_Y_RANGE_SUPPL,
@@ -3570,12 +5422,7 @@ def suppl_plots_stats_volition():
             ),
             "verbose": True,
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "double_press",
             "column": "double_press",
@@ -3588,7 +5435,7 @@ def suppl_plots_stats_volition():
             "min_bin_n": 1,
             "replace_columns": REPLACE_COLUMNS_VOLITION,
             # plot visual config
-            "x_title": "Time from start of free association",
+            "x_title": "Time from start of of free association",
             "y_title": "Story thoughts",
             "x_range": [0, 6.05],
             "y_range": STORY_THOUGHTS_Y_RANGE_SUPPL,
@@ -3746,6 +5593,10 @@ def suppl_plots_stats_wcg_strategy():
     console.print("\nSupplement: Stats strategies", style="red bold")
 
     console.print("\nInter-rater reliability", style="green")
+    # rater1: DA
+    # rater2: AA -> in paper: Rater 2
+    # rater3: AL -> in paper: Rater 1
+    # (paper actually has chronological order correct)
     krippendorf_alpha(
         {
             "load_spec": (
@@ -3758,31 +5609,6 @@ def suppl_plots_stats_wcg_strategy():
                                 "condition",
                                 {
                                     "button_press": NOFILTER,
-                                },
-                            ),
-                        },
-                    )
-                },
-            ),
-            "aggregate_on": "condition",
-            "no_extra_columns": True,
-            "field": "wcg_strategy",
-            "raters": ["rater1", "rater2"],
-            "n_categories": 6,
-        }
-    )
-
-    krippendorf_alpha(
-        {
-            "load_spec": (
-                "all",
-                {
-                    "all": (
-                        "story",
-                        {
-                            "carver_original": (
-                                "condition",
-                                {
                                     "button_press_suppress": NOFILTER,
                                 },
                             ),
@@ -3793,7 +5619,7 @@ def suppl_plots_stats_wcg_strategy():
             "aggregate_on": "condition",
             "no_extra_columns": True,
             "field": "wcg_strategy",
-            "raters": ["rater1", "rater2"],
+            "raters": ["rater2", "rater3"],
             "n_categories": 7,  # rater2 missed two participants -> 7 categories
         }
     )
@@ -3939,7 +5765,6 @@ def suppl_plots_stats_wcg_strategy():
     )
 
     console.print("\nSUPPL: Strategies: Table with ratings", style="green")
-    # Rater 1: AL, Rater 2: AA
     console.print("\nRater 1:", style="yellow")
     plot_categorical_measure(
         {
@@ -3966,7 +5791,7 @@ def suppl_plots_stats_wcg_strategy():
             "x": "condition",
             "measure_name": "wcg_strategy_category",
             "fields": ["wcg_strategy"],
-            "method": "rater:rater2",
+            "method": "rater:rater3",
             "multiple_category_strategy": "expand",
             "replace_columns": REPLACE_COLUMNS_STRATEGIES,
             "save": False,
@@ -3998,7 +5823,7 @@ def suppl_plots_stats_wcg_strategy():
             "x": "condition",
             "measure_name": "wcg_strategy_category",
             "fields": ["wcg_strategy"],
-            "method": "rater:rater1",
+            "method": "rater:rater2",
             "multiple_category_strategy": "expand",
             "replace_columns": REPLACE_COLUMNS_STRATEGIES,
             "save": False,
@@ -4056,12 +5881,7 @@ def suppl_plots_stats_wcg_strategy():
             ),
             "verbose": True,
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -4144,12 +5964,7 @@ def suppl_plots_stats_wcg_strategy():
             ),
             "verbose": True,
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "double_press",
             "column": "double_press",
@@ -4255,17 +6070,12 @@ def suppl_plots_stats_wcg_strategy():
             ),
             "verbose": True,
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
             "fields": ["wcg_strategy"],
-            "method": "rater:rater2",
+            "method": "rater:rater3",
             "multiple_category_strategy": "exclude",
             "keep_columns": ["wcg_strategy_category"],
             "additional_grouping_columns": ["wcg_strategy_category"],
@@ -4322,6 +6132,257 @@ def suppl_plots_stats_wcg_strategy():
     )
 
 
+def suppl_choice_baseline_fig_3_and_distribution_first_bin_aligned():
+    console.print(
+        "\nFig 3: Baseline choice & Distribution within first bin\n", style="red bold"
+    )
+    # GKP: Coming to this a year later, it seems the goal of this is:
+    # (a) investigate the difference between computing the mean of all words in a bin,
+    #     vs the mean of the within-participant mean in the bin.
+    # (b) investigate the significant difference between the button_press and situation
+    #     condition.
+    # As clarification, in the end we used neutralcue2 as baseline.
+    # I left the code and comments here untouched.
+    # Good luck traveler.
+
+    # At some point we switched to button_press as comparison condition to
+    # the interference conditions.
+    # However, we found a significant difference comparing the aligned-by-story end
+    # button_press and situation condition, which wasn't apparent before because we used
+    # the mean of all words in a bin, vs the mean of the within-participant mean in the
+    # sbin.
+
+    bp_30s_60s_bin_df = load_rated_wordchains(
+        {
+            "story": "carver_original",
+            "condition": "button_press",
+            "position": "post",
+            "exclude": [
+                ("lt", "timestamp", 30000),
+                ("gte", "timestamp", 60000),
+            ],
+            "ratings": RATINGS_CARVER,
+            "align_timestamp": "reading_task_end",
+            "column": "story_relatedness",
+        }
+    )
+    mean_across_participants = bp_30s_60s_bin_df["story_relatedness"].mean()
+    mean_mean_within_participants = (
+        bp_30s_60s_bin_df.groupby("participantID")["story_relatedness"].mean().mean()
+    )
+    print(
+        f"Mean across participants: {mean_across_participants}"
+        f"\nMean of mean within participants: {mean_mean_within_participants}"
+    )
+
+    # This raised following question:
+
+    # How should mean story relatedness be computed?
+    # Should the within-participant mean be computed first, or does that upweigh
+    # outliers inaccurately?
+
+    import plotly.express as px
+
+    plot_distribution(
+        {
+            "load_spec": (
+                "condition",
+                {
+                    "button_press": ("filter", {}),
+                    "interference_situation": ("filter", {}),
+                },
+            ),
+            "aggregate_on": "condition",
+            "story": "carver_original",
+            "position": "post",
+            "ratings": RATINGS_CARVER,
+            "align_timestamp": "reading_task_end",
+            "exclude": [
+                ("lt", "timestamp", 30000),
+                ("gte", "timestamp", 60000),
+            ],
+            "measure": "story_relatedness",
+            # plot visual config
+            "nbins": 12,
+            "bargap": 0.1,
+            "descriptive_lines": True,
+            "group_column": "participantID",
+            "min_x": 1,
+            "max_x": 7,
+            "y_range": [0, 404],
+            "color_sequence": px.colors.sequential.Rainbow,
+            # saving config
+            "save": True,
+            "study": STUDY_SUPPL,
+            "scale": 2,
+            "width": 810,
+            "height": 660,
+            "filetype": FILETYPE,
+            "filepostfix": "post.across_participants.<condition>",
+            "show": False,
+        }
+    )
+
+    plot_distribution(
+        {
+            "load_spec": (
+                "condition",
+                {
+                    "button_press": ("filter", {}),
+                    "interference_situation": ("filter", {}),
+                },
+            ),
+            "aggregate_on": "condition",
+            "story": "carver_original",
+            "position": "post",
+            "ratings": RATINGS_CARVER,
+            "align_timestamp": "reading_task_end",
+            "exclude": [
+                ("lt", "timestamp", 30000),
+                ("gte", "timestamp", 60000),
+            ],
+            "measure": "story_relatedness",
+            "within_participant_summary": True,
+            # plot visual config
+            "nbins": 12,
+            "bargap": 0.1,
+            "descriptive_lines": True,
+            "group_column": "participantID",
+            "min_x": 1,
+            "max_x": 7,
+            "y_range": [0, 50],
+            "color_sequence": px.colors.sequential.Rainbow,
+            # saving config
+            "save": True,
+            "study": STUDY_SUPPL,
+            "scale": 2,
+            "width": 810,
+            "height": 660,
+            "filetype": FILETYPE,
+            "filepostfix": "post.within_participants.<condition>",
+            "show": False,
+        }
+    )
+    # Unfortunately these plots are not very helpful (because of the high n), but it
+    # seems to make more sense to compute the mean of the mean of each participant, and
+    # the plots do not seem to speak against that idea.
+
+    # We also wondered that the difference in computing means may arose from an effect
+    # in which participans who produced high-story related words only produced very few
+    # words, and then taking within-participant means upweighting these observations.
+    # Thus we computed, for the by-end-of-story-aligned 30s-60s time-bin in button_press
+    # the relationship between mean_story_relatedness and number of words for each
+    # participant:
+    n_words = bp_30s_60s_bin_df.groupby("participantID")["story_relatedness"].count()
+    n_words.name = "n_words"
+    mean_sr: pd.Series = bp_30s_60s_bin_df.groupby("participantID")[  # type: ignore
+        "story_relatedness"
+    ].mean()
+    mean_sr.name = "mean_story_relatedness"
+    corr_msr_nwords = np.corrcoef(n_words, mean_sr)[0, 1]
+    print(f"Correlation mean story relatedness & n words in bin: {corr_msr_nwords}")
+
+    # Indeed there seems to be a correlation: -0.2
+    # So what if the participants producing few high story relatedness words are
+    # different in this condition, because they interact in some way with the button
+    # presses of the thought entries?
+    n_te_df = load_n_thought_entries(
+        {
+            "story": "carver_original",
+            "condition": "button_press",
+            "position": "post",
+            "ratings": RATINGS_CARVER,
+            "align_timestamp": "reading_task_end",
+            "column": "story_relatedness",
+        },
+        {
+            "exclude": [
+                ("lt", "timestamp", 30000),
+                ("gte", "timestamp", 60000),
+            ],
+        },
+        {},
+    )[["thought_entries"]]
+    aggs_df = pd.merge(
+        pd.merge(n_words, mean_sr, left_index=True, right_index=True),
+        n_te_df,
+        left_index=True,
+        right_index=True,
+    )
+
+    from oc_pmc.utils import save_plot
+
+    fig = px.scatter(
+        aggs_df,
+        x="n_words",
+        y="mean_story_relatedness",
+        trendline="ols",
+        color="thought_entries",
+    )
+    save_plot(
+        {
+            "width": 900,
+            "height": 900,
+            "scale": 2,
+        },
+        fig,
+        "distribution/bp_30s_60s_bin_msr_n_words.png",
+    )
+
+    # Looking at the plot you can see:
+    # 1. Less data points in the top right
+    # 2. Most people who pressed the button more often are in/towards the top-left
+    # => thus there seems to be some interaction in which button presses affect how
+    # people report/generate words, and button_press is not the appropriate baseline
+    # for the interfere conditions.
+
+    # Furthemore, computing the difference between the conditions at different bin
+    # positions reveals that at all but position 25s, and 30s the difference is not
+    # significant. Furthermore, the significance at 25s and 30s wouldn't survive
+    # multiple comparison correction.
+    bin_starts_and_ends = [
+        (15000, 45000),
+        (20000, 50000),
+        (25000, 55000),
+        (30000, 60000),
+        (35000, 65000),
+        (40000, 70000),
+        (45000, 75000),
+        (50000, 80000),
+    ]
+    for bin_start, bin_end in bin_starts_and_ends:
+        console.print(f"Bin position: {bin_start / 1000}s", style="yellow")
+        sr_two(
+            {
+                "config1": {
+                    "condition": "button_press",
+                    "exclude": [
+                        ("lt", "timestamp", bin_start),
+                        ("gte", "timestamp", bin_end),
+                    ],
+                },
+                "config2": {
+                    "condition": "interference_situation",
+                    "exclude": [
+                        ("lt", "timestamp", bin_start),
+                        ("gte", "timestamp", bin_end),
+                    ],
+                },
+                "story": "carver_original",
+                "position": "post",
+                "ratings": RATINGS_CARVER,
+                "align_timestamp": "reading_task_end",
+                "column": "story_relatedness",
+                "within_participant_summary": True,
+                "test_type": "ind",
+            }
+        )
+
+    # We thus feel justified in concluding the difference in the bin starting at
+    # 25s and 30s between button_press and situation is not reflective of the
+    # persistence of mental content being blocked.
+
+
 def suppl_plots_by_words():
     console.print("\nSupplement: Plots by words", style="red bold")
 
@@ -4351,12 +6412,7 @@ def suppl_plots_by_words():
             ),
             "verbose": True,
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -4552,12 +6608,7 @@ def suppl_plots_by_words():
                 },
             ),
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -4638,12 +6689,7 @@ def suppl_plots_by_words():
                 },
             ),
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -6023,7 +8069,7 @@ def suppl_plots_stats_lightbulb_after_carver():
 
     console.print("\nLinger rating: multiple comparisons", style="green")
 
-    multiple_comparions: list[tuple[str, float]] = list()
+    multiple_comparions = list()
 
     console.print("\n New Story Alone v continued", style="yellow")
     pval = test_two(
@@ -6222,6 +8268,7 @@ def suppl_stats_control_correlations_story_thoughts():
             "position": "pre",
             "x_measure": "double_press",
             "y_measure": "linger_rating",
+            "threshold": P_DISPLAY_THRESHOLD,
         }
     )
 
@@ -6237,6 +8284,7 @@ def suppl_stats_control_correlations_story_thoughts():
             "x_measure": "story_relatedness",
             "y_measure": "thought_entries",
             "ratings": RATINGS_CARVER,
+            "threshold": P_DISPLAY_THRESHOLD,
         }
     )
     console.print(
@@ -6251,6 +8299,7 @@ def suppl_stats_control_correlations_story_thoughts():
             "x_measure": "story_relatedness",
             "y_measure": "thought_entries",
             "ratings": RATINGS_CARVER,
+            "threshold": P_DISPLAY_THRESHOLD,
         }
     )
 
@@ -6264,6 +8313,7 @@ def suppl_stats_control_correlations_story_thoughts():
             "condition": "button_press",
             "x_measure": "total_double_press_count_post",
             "y_measure": "total_double_press_count_pre",
+            "threshold": P_DISPLAY_THRESHOLD,
         }
     )
 
@@ -6348,6 +8398,7 @@ def suppl_transp_and_pmc():
                     "y_measure": measure,
                     "ratings": RATINGS_CARVER,
                     "verbose": False,
+                    "threshold": P_DISPLAY_THRESHOLD,
                 }
             )
             if result_obj.params[1] < 0:
@@ -6362,7 +8413,7 @@ def suppl_transp_and_pmc():
     console.print("\n > Transportation & Linger rating R^2", style="yellow")
     latex_table_sr = correlation_df.to_latex(
         columns=["condition", "linger_rating", "story_relatedness", "thought_entries"],
-        header=[
+        header=[  # type: ignore
             "Condition",
             "$R^2$ - Linger Rating",
             "$R^2$ - Story relatedness",
@@ -7557,28 +9608,6 @@ def suppl_prereg_continued_separated_delayed_continued():
 
     test_difference_bin_means(
         {
-            "console_comment": ": aligned-by main-story: < 150s",
-            "name1": "Continued",
-            "name2": "Separated",
-            "config1": {"condition": "interference_story_spr_end_continued"},
-            "config2": {"condition": "interference_story_spr_end_separated"},
-            "position": "post",
-            "story": "carver_original",
-            "exclude": ("gt", "timestamp", 150000),
-            "align_timestamp": "reading_task_end",
-            "ratings": RATINGS_CARVER,
-            "measure": "story_relatedness",
-            # test config
-            "alternative": "greater",
-            "step": 30000,
-            "min_bin_n": 200,
-            "n_bootstrap": 5000,
-            "threshold": P_DISPLAY_THRESHOLD,
-        }
-    )
-
-    test_difference_bin_means(
-        {
             "console_comment": ": aligned-by main-story: > 150s",
             "name1": "Continued",
             "name2": "Separated",
@@ -7643,190 +9672,19 @@ def suppl_prereg_continued_separated_delayed_continued():
 
     test_two(
         {
-            "console_comment": ": aligned-by new-story: 0 - 30s",
             "name1": "Continued",
             "name2": "Delayed Continued",
             "config1": {"condition": "interference_story_spr_end_continued"},
             "config2": {"condition": "interference_story_spr_end_delayed_continued"},
-            "exclude": [
-                ("gte", "timestamp", 30000),
-            ],
             "position": "post",
+            "exclude": [("gte", "timestamp", 30000)],
             "story": "carver_original",
-            "align_timestamp": "interference_reading_testing_task_end",
+            "alternative": "greater",
+            # "align_timestamp": "reading_task_end",
             "ratings": RATINGS_CARVER,
             "measure": "story_relatedness",
             "test_type": "mwu",
-            "alternative": "greater",
             "threshold": P_DISPLAY_THRESHOLD,
-        }
-    )
-
-    plot_by_time_shifted(
-        {
-            "load_spec": (
-                "all",
-                {
-                    "all": (
-                        "story",
-                        {
-                            "carver_original": (
-                                "condition",
-                                {
-                                    "interference_story_spr_end_separated": POST_NOFILTER,  # noqa: E501
-                                    "interference_story_spr_end_continued": POST_NOFILTER,  # noqa: E501
-                                    "interference_story_spr_end_delayed_continued": POST_NOFILTER,  # noqa: E501
-                                },
-                            )
-                        },
-                    )
-                },
-            ),
-            "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
-            # plot data config
-            "mode": "relatedness",
-            "column": "story_relatedness",
-            "step": 30000,
-            "align_timestamp": "reading_task_end",
-            "min_bin_n": 300,
-            # plot visual config
-            "title": None,
-            "x_title": "Time from end of original story",
-            "y_title": "Story relatedness",
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
-            # "x_range": [0, 6.05],
-            "x_rangemode": "tozero",
-            "y_range": STORY_RELATEDNESS_Y_RANGE,
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
-            "x_ticks": "outside",
-            "x_skip_first_tick": True,
-            "x_tickwidth": 7,
-            "y_tickwidth": 7,
-            "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
-            "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
-            "axes_linecolor": AXES_COLOR_SUPPL,
-            "axes_tickcolor": AXES_COLOR_SUPPL,
-            "axes_linewidth": 7,
-            "marker_size": 24,
-            "line_width": 7,
-            "x_showgrid": False,
-            "y_showgrid": False,
-            "color_sequence": COLOR_SEQUENCE_ORDERED,
-            "category_orders": ORDER_CONDITIONS,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
-            # plot misc config
-            "bootstrap": True,
-            "n_bootstrap": N_BOOTSTRAP,
-            "ci": 0.95,
-            "showlegend": True,
-            "legend": LEGEND_TOP_RIGHT,
-            "legend_name_mapping": LEGEND_NAME_MAPPING_POSITION,
-            "show": False,
-            "color": "condition",
-            "symbol": "position",
-            # plot save config
-            "study": STUDY_SUPPL,
-            "save": True,
-            "scale": 2,
-            "width": 1350,
-            "height": 660,
-            "filetype": FILETYPE,
-            "filepostfix": "suppl_delayed_continued_aligned_main",
-        }
-    )
-
-    plot_by_time_shifted(
-        {
-            "load_spec": (
-                "all",
-                {
-                    "all": (
-                        "story",
-                        {
-                            "carver_original": (
-                                "condition",
-                                {
-                                    "interference_story_spr_end_separated": POST_NOFILTER,  # noqa: E501
-                                    "interference_story_spr_end_continued": POST_NOFILTER,  # noqa: E501
-                                    "interference_story_spr_end_delayed_continued": POST_NOFILTER,  # noqa: E501
-                                },
-                            )
-                        },
-                    )
-                },
-            ),
-            "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
-            # plot data config
-            "mode": "relatedness",
-            "column": "story_relatedness",
-            "step": 30000,
-            "align_timestamp": "interference_reading_testing_task_end",
-            "min_bin_n": 300,
-            # plot visual config
-            "title": None,
-            "x_title": "Time from end of new story",
-            "y_title": "Story relatedness",
-            "x_title_font_size": 42,
-            "y_title_font_size": 42,
-            # "x_range": [0, 6.05],
-            "x_rangemode": "tozero",
-            "y_range": STORY_RELATEDNESS_Y_RANGE,
-            "x_tickfont": dict(size=36),
-            "y_tickfont": dict(size=36),
-            "x_ticks": "outside",
-            "x_skip_first_tick": True,
-            "x_tickwidth": 7,
-            "y_tickwidth": 7,
-            "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS,
-            "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT,
-            "axes_linecolor": AXES_COLOR_SUPPL,
-            "axes_tickcolor": AXES_COLOR_SUPPL,
-            "axes_linewidth": 7,
-            "marker_size": 24,
-            "line_width": 7,
-            "x_showgrid": False,
-            "y_showgrid": False,
-            "color_sequence": COLOR_SEQUENCE_ORDERED,
-            "category_orders": ORDER_CONDITIONS,
-            "x_title_font_color": COL1,
-            "y_title_font_color": COL1,
-            "font_color": COL1,
-            "bgcolor": COL_BG,
-            # plot misc config
-            "bootstrap": True,
-            "n_bootstrap": N_BOOTSTRAP,
-            "ci": 0.95,
-            "showlegend": True,
-            "legend": LEGEND_TOP_RIGHT,
-            "legend_name_mapping": LEGEND_NAME_MAPPING_POSITION,
-            "show": False,
-            "color": "condition",
-            "symbol": "position",
-            # plot save config
-            "study": STUDY_SUPPL,
-            "save": True,
-            "scale": 2,
-            "width": 1200,
-            "height": 660,
-            "filetype": FILETYPE,
-            "filepostfix": "suppl_delayed_continued_aligned_new",
         }
     )
 
@@ -8410,12 +10268,7 @@ def suppl_prereg_plot_interference():
                 },
             ),
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -8510,6 +10363,7 @@ def suppl_interference_task_performance():
                 "ratings": RATINGS_CARVER,
                 "x_measure": "interference_correct",
                 "y_measure": measure,
+                "threshold": P_DISPLAY_THRESHOLD,
             }
         )
 
@@ -8541,6 +10395,7 @@ def suppl_interference_task_performance():
                 "ratings": RATINGS_CARVER,
                 "x_measure": "interference_correct",
                 "y_measure": measure,
+                "threshold": P_DISPLAY_THRESHOLD,
             }
         )
 
@@ -8570,6 +10425,7 @@ def suppl_interference_task_performance():
                 "ratings": RATINGS_CARVER,
                 "x_measure": "answered_correct",
                 "y_measure": measure,
+                "threshold": P_DISPLAY_THRESHOLD,
             }
         )
 
@@ -8633,12 +10489,7 @@ def suppl_plots_stats_suppress_no_button_press():
             ),
             "verbose": True,
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -8773,6 +10624,82 @@ def suppl_plots_stats_suppress_no_button_press():
     )
 
 
+def suppl_plots_sr_st_suppress():
+    console.print("\nSUPPL: Story thoughts & story relatedness", style="red bold")
+
+    plot_scatter_measures(
+        {
+            "load_spec": (
+                "all",
+                {
+                    "all": (
+                        "story",
+                        {
+                            "carver_original": (
+                                "condition",
+                                {"button_press_suppress": POST_NOFILTER},
+                            )
+                        },
+                    )
+                },
+            ),
+            "aggregate_on": "condition",
+            # on what measure
+            "x_measure": "mean_sr_post",
+            "y_measure": "total_double_press_count_post",
+            # plot config
+            "color": "condition",
+            # "x_range": [0.9, 7.09],
+            "y_range": None,
+            "x_title": "Story relatedness",
+            "y_title": "Story thoughts",
+            "color_sequence": ["#09A000"],
+            "x_showgrid": False,
+            "y_showgrid": False,
+            # "x_tickvals": [1, 2, 3, 4, 5, 6, 7],
+            # "x_ticktext": ["1", "2", "3", "4", "5", "6", "7"],
+            "trendline_color": COL1,
+            "tickcolor": COL1,
+            "axes_linecolor": COL1,
+            "axes_tickcolor": COL1,
+            "axes_linewidth": 7,
+            "x_tickwidth": 7,
+            "y_tickwidth": 7,
+            "y_tickfont": dict(color=COL1, size=36),
+            "x_tickfont": dict(color=COL1, size=36),
+            "x_title_font_color": COL1,
+            "y_title_font_color": COL1,
+            "font_color": COL1,
+            "bgcolor": COL_BG,
+            "showlegend": False,
+            # bootstrap
+            "n_bootstrap": N_BOOTSTRAP,
+            # save config
+            "save": True,
+            "width": 660,
+            "height": 660,
+            "scale": 2.0,
+            "filepostfix": "suppl_sr_st_suppress",
+            "study": STUDY_SUPPL,
+            "filetype": FILETYPE,
+            "regression": True,
+            "regression_on_plot": True,
+        }
+    )
+
+    correlate_two(
+        {
+            "story": "carver_original",
+            "condition": "button_press_suppress",
+            "position": "post",
+            "x_measure": "story_relatedness",
+            "y_measure": "thought_entries",
+            "ratings": RATINGS_CARVER,
+            "threshold": P_DISPLAY_THRESHOLD,
+        }
+    )
+
+
 def suppl_plots_all_bins():
     console.print("\nSUPPL: Plots with all bins", style="red bold")
 
@@ -8801,12 +10728,7 @@ def suppl_plots_all_bins():
                 },
             ),
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -8882,12 +10804,7 @@ def suppl_plots_all_bins():
                 },
             ),
             "aggregate_on": "story",
-            "ratings": {
-                "approach": "human",
-                "model": "moment",
-                "story": "carver_original",
-                "file": "all.csv",
-            },
+            "ratings": RATINGS_CARVER,
             # plot data config
             "mode": "relatedness",
             "column": "story_relatedness",
@@ -8945,6 +10862,1438 @@ def suppl_plots_all_bins():
     )
 
 
+def load_sr_multi_day_all_positions(condition: str):
+    if condition == "multi_day_carver_july":
+        story1 = "carver_original"
+        story2 = "july_original"
+        ratings1 = RATINGS_CARVER_MULTI_DAY
+        ratings2 = RATINGS_JULY_MULTI_DAY
+    elif condition == "multi_day_july_carver":
+        story1 = "july_original"
+        story2 = "carver_original"
+        ratings1 = RATINGS_JULY_MULTI_DAY
+        ratings2 = RATINGS_CARVER_MULTI_DAY
+    else:
+        raise ValueError(f"Invalid condition: {condition}")
+    sr1 = load_per_participant_data(
+        {
+            "story": story1,
+            "condition": condition,
+            "position": "pre",
+            "measure": "story_relatedness",
+            "ratings": ratings1,
+        }
+    ).loc[:, "story_relatedness"]
+    sr2 = load_per_participant_data(
+        {
+            "story": story1,
+            "condition": condition,
+            "position": "post",
+            "measure": "story_relatedness",
+            "ratings": ratings1,
+        }
+    ).loc[:, "story_relatedness"]
+    sr3 = load_per_participant_data(
+        {
+            "story": story2,
+            "condition": condition,
+            "position": "pre",
+            "measure": "story_relatedness",
+            "ratings": ratings2,
+        }
+    ).loc[:, "story_relatedness"]
+    sr4 = load_per_participant_data(
+        {
+            "story": story2,
+            "condition": condition,
+            "position": "post",
+            "measure": "story_relatedness",
+            "ratings": ratings2,
+        }
+    ).loc[:, "story_relatedness"]
+
+    sr_diff_sr2_sr1 = sr2 - sr1
+    sr_diff_sr4_sr3 = sr4 - sr3
+
+    return sr1, sr2, sr3, sr4, sr_diff_sr2_sr1, sr_diff_sr4_sr3
+
+
+def suppl_linger_multi_day_plots():
+    console.print("\nSUPPL: Linger multi-day plots", style="red bold")
+
+    multi_day_pooled_color_map = {
+        "Day 1": COL_NEUTRALCUE2,
+        "Day 2": "#09A000",
+    }
+    multi_day_carver_july_color_map = {
+        "Day 1": "#C701FF",
+        "Day 2": "#FFAE00",
+    }
+    multi_day_july_carver_color_map = {
+        "Day 1": "#FFAE00",
+        "Day 2": "#C701FF",
+    }
+    multi_day_category_orders = {
+        "condition": ["Day 1", "Day 2"],
+    }
+    multi_day_legend_name_mapping = {
+        "Day 1, post": "Day 1 (Baseline) - Post",
+        "Day 1, pre": "Day 1 (Baseline) - Pre",
+        "Day 2, post": "Day 2 (Suppress) - Post",
+        "Day 2, pre": "Day 2 (Suppress) - Pre",
+    }
+    multi_day_legend_name_mapping_carver_july = {
+        "Day 1, post": "Day 1: Carver (Baseline) - Post",
+        "Day 1, pre": "Day 1: Carver (Baseline) - Pre",
+        "Day 2, post": "Day 2: July (Suppress) - Post",
+        "Day 2, pre": "Day 2: July (Suppress) - Pre",
+    }
+    multi_day_legend_name_mapping_july_carver = {
+        "Day 1, post": "Day 1: July (Baseline) - Post",
+        "Day 1, pre": "Day 1: July (Baseline) - Pre",
+        "Day 2, post": "Day 2: Carver (Suppress) - Post",
+        "Day 2, pre": "Day 2: Carver (Suppress) - Pre",
+    }
+
+    def _load_sr_pre_post(
+        story, condition, ratings, align_timestamp, fa_key, label_condition
+    ):
+        dfs = []
+        for pos in ["pre", "post"]:
+            load_config = {
+                "mode": "relatedness",
+                "story": story,
+                "condition": condition,
+                "position": pos,
+                "ratings": ratings,
+                "align_timestamp": align_timestamp,
+            }
+            if fa_key is not None:
+                load_config["free_association_post_task_start_key"] = {
+                    condition: fa_key
+                }
+            df = func_load(load_config)
+            df["story"] = "carver_original"
+            df["condition"] = label_condition
+            df["position"] = pos
+            dfs.append(df)
+        return pd.concat(dfs)
+
+    def _load_linger(story, condition, measure_name, label_condition):
+        df = load_per_participant_data(
+            {
+                "story": story,
+                "condition": condition,
+                "measure_name": measure_name,
+            }
+        )
+        df = df.rename(columns={measure_name: "linger_rating"})
+        df["story"] = "carver_original"
+        df["condition"] = label_condition
+        df["position"] = "post"
+        return df
+
+    def _plot_sr(
+        data_df: pd.DataFrame,
+        legend_name_mapping: dict,
+        color_map: dict,
+        filepostfix: str,
+        legend: bool,
+    ):
+        func_plot_by_time(
+            config={
+                "mode": "relatedness",
+                "column": "story_relatedness",
+                "color": "condition",
+                "symbol": "position",
+                "step": 30000,
+                "align_timestamp": "reading_task_end",
+                "min_bin_n": 10,
+                "title": None,
+                "x_title": "Time from end of story",
+                "y_title": "Story relatedness<br>(LLM-rated)",
+                "x_title_font_size": 42,
+                "y_title_font_size": 42,
+                "x_tickfont": dict(size=36),
+                "y_tickfont": dict(size=36),
+                "x_ticks": "outside",
+                "x_skip_first_tick": True,
+                "x_tickwidth": 7,
+                "y_tickwidth": 7,
+                "y_range": STORY_RELATEDNESS_Y_RANGE_SUPPL,
+                "y_tickvals": STORY_RELATEDNESS_Y_TICKVALS_SUPPL,
+                "y_ticktext": STORY_RELATEDNESS_Y_TICKTEXT_SUPPL,
+                "axes_linecolor": AXES_COLOR_SUPPL,
+                "axes_tickcolor": AXES_COLOR_SUPPL,
+                "axes_linewidth": 7,
+                "marker_size": 24,
+                "line_width": 7,
+                "x_showgrid": False,
+                "y_showgrid": False,
+                "color_map": color_map,
+                "category_orders": multi_day_category_orders,
+                "symbol_map": SYMBOL_MAP_POSITION,
+                "x_title_font_color": COL1,
+                "y_title_font_color": COL1,
+                "font_color": COL1,
+                "bgcolor": COL_BG,
+                # no bootstrap for plots with legends
+                "bootstrap": not legend,
+                "n_bootstrap": N_BOOTSTRAP,
+                "ci": 0.95,
+                "showlegend": legend,
+                "legend": LEGEND_RIGHT_NEXT,
+                "legend_name_mapping": legend_name_mapping,
+                "show": False,
+                "study": STUDY_SUPPL,
+                "save": True,
+                "scale": 2,
+                "width": 1650 if legend else 1200,
+                "height": 660,
+                "filetype": FILETYPE,
+                "filepostfix": filepostfix + "_legend" if legend else filepostfix,
+            },
+            data_df=data_df,
+        )
+
+    def _plot_linger(
+        measure_df: pd.DataFrame,
+        color_map: dict,
+        filepostfix: str,
+    ):
+        func_plot_numeric_measure(
+            config={
+                "measure_name": "linger_rating",
+                "summary_fun": np.nanmean,
+                "title": "",
+                "y_range": SUBJECTIVE_LINGERING_Y_RANGE,
+                "color_map": color_map,
+                "category_orders": multi_day_category_orders,
+                "orientation": "h",
+                "showlegend": False,
+                "x_ticktext": [],
+                "x_tickvals": [],
+                "y_tickfont": dict(color=COL1, size=42),
+                "x_title": "Condition",
+                "y_title": "Self-reported lingering",
+                "x_title_font_size": 42,
+                "y_title_font_size": 42,
+                "bargap": None,
+                "x_showgrid": False,
+                "y_showgrid": False,
+                "axes_linecolor": AXES_COLOR_SUPPL,
+                "axes_tickcolor": AXES_COLOR_SUPPL,
+                "x_title_font_color": COL1,
+                "y_title_font_color": COL1,
+                "font_color": COL1,
+                "bgcolor": COL_BG,
+                "hlines": [
+                    {
+                        "y": 2.62,
+                        "line": {
+                            "dash": "dash",
+                            "color": COLOR_SEQUENCE_ORDERED[
+                                ORDER_CONDITIONS["condition"].index("word_scrambled")
+                            ],
+                            "width": 9,
+                        },
+                    },
+                ],
+                "bootstrap": True,
+                "n_bootstrap": N_BOOTSTRAP,
+                "ci": 0.95,
+                "save": True,
+                "width": 720,
+                "height": 660,
+                "scale": 2.0,
+                "filepostfix": filepostfix,
+                "study": STUDY_SUPPL,
+                "filetype": FILETYPE,
+            },
+            data_df=measure_df,
+        )
+
+    # --- Pooled (both counterbalance orders) ---
+    console.print("\nPooled multi-day SR (post vs pre)", style="yellow")
+    sr_dfs = [
+        _load_sr_pre_post(
+            "carver_original",
+            "multi_day_carver_july",
+            RATINGS_CARVER_MULTI_DAY,
+            "reading_task_end_1",
+            "free_association_post_task_start_1",
+            "Day 1",
+        ),
+        _load_sr_pre_post(
+            "july_original",
+            "multi_day_july_carver",
+            RATINGS_JULY_MULTI_DAY,
+            "reading_task_end_1",
+            "free_association_post_task_start_1",
+            "Day 1",
+        ),
+        _load_sr_pre_post(
+            "july_original",
+            "multi_day_carver_july",
+            RATINGS_JULY_MULTI_DAY,
+            "reading_task_end_2",
+            "free_association_post_task_start_2",
+            "Day 2",
+        ),
+        _load_sr_pre_post(
+            "carver_original",
+            "multi_day_july_carver",
+            RATINGS_CARVER_MULTI_DAY,
+            "reading_task_end_2",
+            "free_association_post_task_start_2",
+            "Day 2",
+        ),
+    ]
+    _plot_sr(
+        data_df=pd.concat(sr_dfs),
+        legend_name_mapping=multi_day_legend_name_mapping,
+        color_map=multi_day_pooled_color_map,
+        filepostfix="suppl_multi_day_pooled",
+        legend=True,
+    )
+    _plot_sr(
+        data_df=pd.concat(sr_dfs),
+        legend_name_mapping=multi_day_legend_name_mapping,
+        color_map=multi_day_pooled_color_map,
+        filepostfix="suppl_multi_day_pooled",
+        legend=False,
+    )
+
+    console.print("\nPooled multi-day linger rating", style="yellow")
+    lr_dfs = [
+        _load_linger(
+            "carver_original",
+            "multi_day_carver_july",
+            "linger_rating_1",
+            "Day 1",
+        ),
+        _load_linger(
+            "july_original",
+            "multi_day_july_carver",
+            "linger_rating_1",
+            "Day 1",
+        ),
+        _load_linger(
+            "july_original",
+            "multi_day_carver_july",
+            "linger_rating_2",
+            "Day 2",
+        ),
+        _load_linger(
+            "carver_original",
+            "multi_day_july_carver",
+            "linger_rating_2",
+            "Day 2",
+        ),
+    ]
+    _plot_linger(
+        pd.concat(lr_dfs),
+        color_map=multi_day_pooled_color_map,
+        filepostfix="suppl_multi_day_linger_pooled",
+    )
+
+    # --- carver_july only ---
+    console.print("\ncarver_july SR (post vs pre)", style="yellow")
+    sr_dfs_cj = [
+        _load_sr_pre_post(
+            "carver_original",
+            "multi_day_carver_july",
+            RATINGS_CARVER_MULTI_DAY,
+            "reading_task_end_1",
+            "free_association_post_task_start_1",
+            "Day 1",
+        ),
+        _load_sr_pre_post(
+            "july_original",
+            "multi_day_carver_july",
+            RATINGS_JULY_MULTI_DAY,
+            "reading_task_end_2",
+            "free_association_post_task_start_2",
+            "Day 2",
+        ),
+    ]
+    _plot_sr(
+        pd.concat(sr_dfs_cj),
+        legend_name_mapping=multi_day_legend_name_mapping_carver_july,
+        color_map=multi_day_carver_july_color_map,
+        filepostfix="suppl_multi_day_carver_july",
+        legend=True,
+    )
+    _plot_sr(
+        data_df=pd.concat(sr_dfs_cj),
+        legend_name_mapping=multi_day_legend_name_mapping_carver_july,
+        color_map=multi_day_carver_july_color_map,
+        filepostfix="suppl_multi_day_carver_july",
+        legend=False,
+    )
+
+    console.print("\ncarver_july linger rating", style="yellow")
+    lr_dfs_cj = [
+        _load_linger(
+            "carver_original",
+            "multi_day_carver_july",
+            "linger_rating_1",
+            "Day 1",
+        ),
+        _load_linger(
+            "july_original",
+            "multi_day_carver_july",
+            "linger_rating_2",
+            "Day 2",
+        ),
+    ]
+    _plot_linger(
+        pd.concat(lr_dfs_cj),
+        color_map=multi_day_carver_july_color_map,
+        filepostfix="suppl_multi_day_linger_carver_july",
+    )
+
+    # --- july_carver only ---
+    console.print("\njuly_carver SR (post vs pre)", style="yellow")
+    sr_dfs_jc = [
+        _load_sr_pre_post(
+            "july_original",
+            "multi_day_july_carver",
+            RATINGS_JULY_MULTI_DAY,
+            "reading_task_end_1",
+            "free_association_post_task_start_1",
+            "Day 1",
+        ),
+        _load_sr_pre_post(
+            "carver_original",
+            "multi_day_july_carver",
+            RATINGS_CARVER_MULTI_DAY,
+            "reading_task_end_2",
+            "free_association_post_task_start_2",
+            "Day 2",
+        ),
+    ]
+    _plot_sr(
+        pd.concat(sr_dfs_jc),
+        legend_name_mapping=multi_day_legend_name_mapping_july_carver,
+        color_map=multi_day_july_carver_color_map,
+        filepostfix="suppl_multi_day_july_carver",
+        legend=True,
+    )
+    _plot_sr(
+        pd.concat(sr_dfs_jc),
+        legend_name_mapping=multi_day_legend_name_mapping_july_carver,
+        color_map=multi_day_july_carver_color_map,
+        filepostfix="suppl_multi_day_july_carver",
+        legend=False,
+    )
+
+    console.print("\njuly_carver linger rating", style="yellow")
+    lr_dfs_jc = [
+        _load_linger(
+            "july_original",
+            "multi_day_july_carver",
+            "linger_rating_1",
+            "Day 1",
+        ),
+        _load_linger(
+            "carver_original",
+            "multi_day_july_carver",
+            "linger_rating_2",
+            "Day 2",
+        ),
+    ]
+    _plot_linger(
+        measure_df=pd.concat(lr_dfs_jc),
+        color_map=multi_day_july_carver_color_map,
+        filepostfix="suppl_multi_day_linger_july_carver",
+    )
+
+
+def suppl_linger_multi_day_stats():
+    console.print("\nSUPPL: Linger multi-day", style="red bold")
+
+    # show post pre test
+    console.print("\n|a1| story-relatedness stats", style="blue")
+    cj_sr1, cj_sr2, cj_sr3, cj_sr4, cj_diff_sr2_sr1, cj_diff_sr4_sr3 = (
+        load_sr_multi_day_all_positions("multi_day_carver_july")
+    )
+    jc_sr1, jc_sr2, jc_sr3, jc_sr4, jc_diff_sr2_sr1, jc_diff_sr4_sr3 = (
+        load_sr_multi_day_all_positions("multi_day_july_carver")
+    )
+    sr1: pd.Series = pd.concat([cj_sr1, jc_sr1])  # type: ignore
+    sr2: pd.Series = pd.concat([cj_sr2, jc_sr2])  # type: ignore
+    sr3: pd.Series = pd.concat([cj_sr3, jc_sr3])  # type: ignore
+    sr4: pd.Series = pd.concat([cj_sr4, jc_sr4])  # type: ignore
+    test_two(
+        {
+            "name1": "Post",
+            "name2": "Pre",
+            "superscript1": "Day 1",
+            "superscript2": "Day 1",
+            "measure": "story_relatedness",
+            "test_type": "wilcoxon",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+        data1_sr=sr2,
+        data2_sr=sr1,
+    )
+
+    test_two(
+        {
+            "name1": "Post",
+            "name2": "Pre",
+            "superscript1": "Day 2",
+            "superscript2": "Day 2",
+            "measure": "story_relatedness",
+            "test_type": "wilcoxon",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+        data1_sr=sr4,
+        data2_sr=sr3,
+    )
+
+    # [a1]  (sr2 - sr1) vs (sr4 - sr3)
+    console.print("\n|a1| main replication", style="blue")
+    console.print(
+        "\n|a1| behavioral elimination: (sr2 - sr1) vs (sr4 - sr3)", style="yellow"
+    )
+
+    diff_sr2_sr1: pd.Series = pd.concat([cj_diff_sr2_sr1, jc_diff_sr2_sr1])  # type: ignore
+    diff_sr4_sr3: pd.Series = pd.concat([cj_diff_sr4_sr3, jc_diff_sr4_sr3])  # type: ignore
+    test_two(
+        {
+            "name1": "Post - Pre",
+            "name2": "Post - Pre",
+            "superscript1": "Day 1",
+            "superscript2": "Day 2",
+            "measure": "story_relatedness",
+            "test_type": "wilcoxon",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+        data1_sr=diff_sr2_sr1,
+        data2_sr=diff_sr4_sr3,
+    )
+
+    # [a1] linger_rating_1 vs linger_rating_2
+    console.print(
+        "\n|a1| subjective non-elimination: linger_rating_1 vs linger_rating_2",
+        style="yellow",
+    )
+
+    test_two(
+        {
+            "name1": "Day 2",
+            "name2": "Day 1",
+            "measure": "linger_rating",
+            "config1": {
+                "combined_configs": [
+                    {
+                        "story": "july_original",
+                        "condition": "multi_day_carver_july",
+                    },
+                    {
+                        "story": "carver_original",
+                        "condition": "multi_day_july_carver",
+                    },
+                ],
+                "measure": "linger_rating_2",
+            },
+            "config2": {
+                "combined_configs": [
+                    {
+                        "story": "carver_original",
+                        "condition": "multi_day_carver_july",
+                    },
+                    {
+                        "story": "july_original",
+                        "condition": "multi_day_july_carver",
+                    },
+                ],
+                "measure": "linger_rating_1",
+            },
+            "test_type": "wilcoxon",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+    )
+
+    # to check suppress v neutralcue, suppress_button_press vs button_press
+    test_two(
+        {
+            "name1": "Suppress No Button Press",
+            "name2": "Baseline",
+            "story": "carver_original",
+            "config1": {"condition": "suppress"},
+            "config2": {"condition": "neutralcue2"},
+            "measure": "linger_rating",
+            "test_type": "mwu",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+    )
+
+    # to check suppress v neutralcue, suppress_button_press vs button_press
+    test_two(
+        {
+            "name1": "Suppress",
+            "name2": "Intact",
+            "story": "carver_original",
+            "config1": {"condition": "button_press_suppress"},
+            "config2": {"condition": "button_press"},
+            "measure": "linger_rating",
+            "test_type": "mwu",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+    )
+
+    # day 2 vs word_scrambled
+    console.print(
+        "\n Posthoc check: linger_rating_2 vs word_scrambled",
+        style="yellow",
+    )
+
+    test_two(
+        {
+            "name1": "Day 2",
+            "name2": "Scrambled",
+            "measure": "linger_rating",
+            "config1": {
+                "combined_configs": [
+                    {
+                        "story": "july_original",
+                        "condition": "multi_day_carver_july",
+                    },
+                    {
+                        "story": "carver_original",
+                        "condition": "multi_day_july_carver",
+                    },
+                ],
+                "measure": "linger_rating_2",
+            },
+            "config2": {
+                "story": "carver_original",
+                "condition": "word_scrambled",
+                "measure": "linger_rating",
+            },
+            "test_type": "mwu",
+            "measure_letter": "L",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+    )
+
+    console.print("\n\n|a2| order effects", style="blue")
+
+    # [a2] differences between carver-july and july-carver for |a1|
+    console.print(
+        "\n|a2| differences between carver-july and july-carver for |a1| sr",
+        style="yellow",
+    )
+
+    cj_diff_day1_day2 = cj_diff_sr4_sr3 - cj_diff_sr2_sr1
+    cj_diff_day1_day2.name = "diff_sr_day2_day1"
+    jc_diff_day1_day2 = jc_diff_sr4_sr3 - jc_diff_sr2_sr1
+    jc_diff_day1_day2.name = "diff_sr_day2_day1"
+
+    test_two(
+        {
+            "name1": "Post - Pre; Day 2 - Day 1",
+            "name2": "Post - Pre; Day 2 - Day 1",
+            "superscript1": "Carver July",
+            "superscript2": "July Carver",
+            "measure": "diff_sr_day2_day1",
+            "test_type": "mwu",
+            "measure_letter": "M",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+        data1_sr=cj_diff_day1_day2,
+        data2_sr=jc_diff_day1_day2,
+    )
+
+    # [a2] differences between carver-july and july-carver for |a1| lingering
+    console.print(
+        "\n|a2| differences between carver-july and july-carver for |a1| linger-rating",
+        style="yellow",
+    )
+    linger_rating_cj_1 = load_per_participant_data(
+        {
+            "story": "carver_original",
+            "condition": "multi_day_carver_july",
+            "measure_name": "linger_rating_1",
+        }
+    ).loc[:, "linger_rating_1"]
+    linger_rating_cj_2 = load_per_participant_data(
+        {
+            "story": "july_original",
+            "condition": "multi_day_carver_july",
+            "measure_name": "linger_rating_2",
+        }
+    ).loc[:, "linger_rating_2"]
+    linger_rating_jc_1 = load_per_participant_data(
+        {
+            "story": "carver_original",
+            "condition": "multi_day_july_carver",
+            "measure_name": "linger_rating_1",
+        }
+    ).loc[:, "linger_rating_1"]
+    linger_rating_jc_2 = load_per_participant_data(
+        {
+            "story": "july_original",
+            "condition": "multi_day_july_carver",
+            "measure_name": "linger_rating_2",
+        }
+    ).loc[:, "linger_rating_2"]
+    diff_linger_rating_cj = linger_rating_cj_2 - linger_rating_cj_1
+    diff_linger_rating_cj.name = "diff_linger_rating"
+    diff_linger_rating_jc = linger_rating_jc_2 - linger_rating_jc_1
+    diff_linger_rating_jc.name = "diff_linger_rating"
+
+    test_two(
+        {
+            "name1": "Day 2 - Day 1",
+            "name2": "Day 2 - Day 1",
+            "superscript1": "Carver July",
+            "superscript2": "July Carver",
+            "measure": "diff_linger_rating",
+            "test_type": "mwu",
+            "threshold": P_DISPLAY_THRESHOLD,
+            "measure_letter": "L",
+        },
+        data1_sr=diff_linger_rating_cj,
+        data2_sr=diff_linger_rating_jc,
+    )
+
+    console.print(
+        "\n|a2.1| differences between day 2 and day 1 for carver-july only",
+        style="yellow",
+    )
+
+    test_two(
+        {
+            "name1": "linger_rating_1",
+            "name2": "linger_rating_2",
+            "measure": "linger_rating",
+            "test_type": "wilcoxon",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+        data1_sr=linger_rating_cj_1,
+        data2_sr=linger_rating_cj_2,
+    )
+
+    console.print(
+        "\n|a2.2| differences between day 2 and day 1 for july-carver only",
+        style="yellow",
+    )
+
+    test_two(
+        {
+            "name1": "linger_rating_1",
+            "name2": "linger_rating_2",
+            "measure": "linger_rating",
+            "test_type": "wilcoxon",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+        data1_sr=linger_rating_jc_1,
+        data2_sr=linger_rating_jc_2,
+    )
+
+    console.print("\n\n|b1| linger24h_rating", style="blue")
+
+    console.print(
+        "\n|b1| linger24h_rating vs linger_rating_1",
+        style="yellow",
+    )
+    correlate_two(
+        {
+            "x_measure": "linger_24h_rating_2",
+            "config1": {
+                "combined_configs": [
+                    {
+                        "story": "july_original",
+                        "condition": "multi_day_carver_july",
+                    },
+                    {
+                        "story": "carver_original",
+                        "condition": "multi_day_july_carver",
+                    },
+                ],
+            },
+            "y_measure": "linger_rating_1",
+            "config2": {
+                "combined_configs": [
+                    {
+                        "story": "carver_original",
+                        "condition": "multi_day_carver_july",
+                    },
+                    {
+                        "story": "july_original",
+                        "condition": "multi_day_july_carver",
+                    },
+                ],
+            },
+            "threshold": P_DISPLAY_THRESHOLD,
+        }
+    )
+
+    console.print(
+        "\n|b1| linger24h_rating vs (sr2 - sr1 <30s)",
+        style="yellow",
+    )
+    sr1_df = load_per_participant_data(
+        {
+            "combined_configs": [
+                {
+                    "story": "carver_original",
+                    "condition": "multi_day_carver_july",
+                    "ratings": RATINGS_CARVER_MULTI_DAY,
+                },
+                {
+                    "story": "july_original",
+                    "condition": "multi_day_july_carver",
+                    "ratings": RATINGS_JULY_MULTI_DAY,
+                },
+            ],
+            "position": "pre",
+            "measure": "story_relatedness",
+            "exclude": ("gt", "timestamp", 30000),
+        }
+    )
+    sr2_df = load_per_participant_data(
+        {
+            "combined_configs": [
+                {
+                    "story": "carver_original",
+                    "condition": "multi_day_carver_july",
+                    "ratings": RATINGS_CARVER_MULTI_DAY,
+                },
+                {
+                    "story": "july_original",
+                    "condition": "multi_day_july_carver",
+                    "ratings": RATINGS_JULY_MULTI_DAY,
+                },
+            ],
+            "position": "post",
+            "measure": "story_relatedness",
+            "exclude": ("gt", "timestamp", 30000),
+        }
+    )
+
+    sr_diff_sr2_sr1 = sr2_df - sr1_df  # type: ignore
+
+    correlate_two(
+        {
+            "x_measure": "linger_24h_rating_2",
+            "config1": {
+                "combined_configs": [
+                    {
+                        "story": "july_original",
+                        "condition": "multi_day_carver_july",
+                    },
+                    {
+                        "story": "carver_original",
+                        "condition": "multi_day_july_carver",
+                    },
+                ],
+            },
+            "y_measure": "story_relatedness",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+        data2_df=sr_diff_sr2_sr1,
+    )
+
+    console.print("\n\n|b2| rii", style="blue")
+
+    console.print(
+        "\n|b2| rii vs linger_rating_1",
+        style="yellow",
+    )
+    for rii_measure in [
+        "rii_total_prop_2",
+        "rii_character_prop_2",
+        "rii_event_prop_2",
+        "rii_universe_prop_2",
+        "rii_backstory_prop_2",
+    ]:
+        correlate_two(
+            {
+                "x_measure": rii_measure,
+                "y_measure": "linger_rating_1",
+                # questionnaire data summary combines both days, can only load one
+                "combined_configs": [
+                    {
+                        "story": "july_original",
+                        "condition": "multi_day_carver_july",
+                    },
+                    {
+                        "story": "carver_original",
+                        "condition": "multi_day_july_carver",
+                    },
+                ],
+                "threshold": P_DISPLAY_THRESHOLD,
+            },
+        )
+
+    console.print(
+        "\n|b2| rii vs (sr2 - sr1 <30s)",
+        style="yellow",
+    )
+    sr1_df = load_per_participant_data(
+        {
+            "combined_configs": [
+                {
+                    "story": "carver_original",
+                    "condition": "multi_day_carver_july",
+                    "ratings": RATINGS_CARVER_MULTI_DAY,
+                },
+                {
+                    "story": "july_original",
+                    "condition": "multi_day_july_carver",
+                    "ratings": RATINGS_JULY_MULTI_DAY,
+                },
+            ],
+            "position": "pre",
+            "measure": "story_relatedness",
+            "exclude": ("gt", "timestamp", 30000),
+        }
+    )
+    sr2_df = load_per_participant_data(
+        {
+            "combined_configs": [
+                {
+                    "story": "carver_original",
+                    "condition": "multi_day_carver_july",
+                    "ratings": RATINGS_CARVER_MULTI_DAY,
+                },
+                {
+                    "story": "july_original",
+                    "condition": "multi_day_july_carver",
+                    "ratings": RATINGS_JULY_MULTI_DAY,
+                },
+            ],
+            "position": "post",
+            "measure": "story_relatedness",
+            "exclude": ("gt", "timestamp", 30000),
+        }
+    )
+    sr_diff_sr2_sr1 = sr2_df - sr1_df
+    for rii_measure in [
+        "rii_total_prop_2",
+        "rii_character_prop_2",
+        "rii_event_prop_2",
+        "rii_universe_prop_2",
+        "rii_backstory_prop_2",
+    ]:
+        correlate_two(
+            {
+                "x_measure": rii_measure,
+                "y_measure": "story_relatedness",
+                "config1": {
+                    "combined_configs": [
+                        {
+                            "story": "july_original",
+                            "condition": "multi_day_carver_july",
+                        },
+                        {
+                            "story": "carver_original",
+                            "condition": "multi_day_july_carver",
+                        },
+                    ],
+                },
+                "threshold": P_DISPLAY_THRESHOLD,
+            },
+            data2_df=sr_diff_sr2_sr1,
+        )
+
+    console.print(
+        "\n|b2| rii vs linger_24h_rating_2",
+        style="yellow",
+    )
+    for rii_measure in [
+        "rii_total_prop_2",
+        "rii_character_prop_2",
+        "rii_event_prop_2",
+        "rii_universe_prop_2",
+        "rii_backstory_prop_2",
+    ]:
+        correlate_two(
+            {
+                "x_measure": rii_measure,
+                "y_measure": "linger_24h_rating_2",
+                # questionnaire data summary combines both days, can only load one
+                "combined_configs": [
+                    {
+                        "story": "july_original",
+                        "condition": "multi_day_carver_july",
+                    },
+                    {
+                        "story": "carver_original",
+                        "condition": "multi_day_july_carver",
+                    },
+                ],
+                "threshold": P_DISPLAY_THRESHOLD,
+            },
+        )
+
+
+def suppl_prereg_linger_multi_day():
+    console.print("\nSUPPL: Linger multi-day (preregistration)", style="red bold")
+
+    console.print("\n\n|c1| long-term story-relatedness?", style="blue")
+
+    console.print(
+        "\n|c1| SR1 (story1) vs SR3 (to story1)",
+        style="yellow",
+    )
+
+    test_two(
+        {
+            "name1": "Day 1; Pre; SR to Story 1",
+            "name2": "Day 2; Pre; SR to Story 1",
+            "measure": "story_relatedness",
+            "config1": {
+                "combined_configs": [
+                    {
+                        "story": "carver_original",
+                        "condition": "multi_day_carver_july",
+                        "position": "pre",
+                        "ratings": RATINGS_CARVER_MULTI_DAY,
+                    },
+                    {
+                        "story": "july_original",
+                        "condition": "multi_day_july_carver",
+                        "position": "pre",
+                        "ratings": RATINGS_JULY_MULTI_DAY,
+                    },
+                ],
+            },
+            "config2": {
+                "combined_configs": [
+                    {
+                        "story": "july_original",
+                        "condition": "multi_day_carver_july",
+                        "position": "pre",
+                        "ratings": RATINGS_CARVER_MULTI_DAY,
+                    },
+                    {
+                        "story": "carver_original",
+                        "condition": "multi_day_july_carver",
+                        "position": "pre",
+                        "ratings": RATINGS_JULY_MULTI_DAY,
+                    },
+                ],
+            },
+            "test_type": "wilcoxon",
+            "threshold": P_DISPLAY_THRESHOLD,
+        },
+    )
+
+
+# plot all rii correlations in table
+def suppl_stats_rii_correlations():
+    console.print(
+        "\n\nSupplement: Stats: RII correlations with dependent variables",
+        style="red bold",
+    )
+
+    rii_measures = {
+        "rii_total_prop_2": "Overall RII Score",
+        "rii_character_prop_2": "Character",
+        "rii_event_prop_2": "Event",
+        "rii_universe_prop_2": "Universe",
+        "rii_backstory_prop_2": "Backstory",
+    }
+
+    combined_configs_questionnaire = [
+        {
+            "story": "july_original",
+            "condition": "multi_day_carver_july",
+        },
+        {
+            "story": "carver_original",
+            "condition": "multi_day_july_carver",
+        },
+    ]
+
+    combined_configs_ratings_day1 = [
+        {
+            "story": "carver_original",
+            "condition": "multi_day_carver_july",
+            "ratings": RATINGS_CARVER_MULTI_DAY,
+        },
+        {
+            "story": "july_original",
+            "condition": "multi_day_july_carver",
+            "ratings": RATINGS_JULY_MULTI_DAY,
+        },
+    ]
+
+    combined_configs_ratings_day2 = [
+        {
+            "story": "july_original",
+            "condition": "multi_day_carver_july",
+            "ratings": RATINGS_JULY_MULTI_DAY,
+        },
+        {
+            "story": "carver_original",
+            "condition": "multi_day_july_carver",
+            "ratings": RATINGS_CARVER_MULTI_DAY,
+        },
+    ]
+
+    # Load SR pre/post and compute SR2 - SR1.
+    sr1_df = load_per_participant_data(
+        {
+            "combined_configs": combined_configs_ratings_day1,
+            "position": "pre",
+            "measure": "story_relatedness",
+            "exclude": ("gt", "timestamp", 30000),
+        }
+    )
+
+    sr2_df = load_per_participant_data(
+        {
+            "combined_configs": combined_configs_ratings_day1,
+            "position": "post",
+            "measure": "story_relatedness",
+            "exclude": ("gt", "timestamp", 30000),
+        }
+    )
+
+    sr_diff_sr2_sr1 = sr2_df - sr1_df
+
+    # Load SR pre/post and compute SR4 - SR3.
+    sr3_df = load_per_participant_data(
+        {
+            "combined_configs": combined_configs_ratings_day2,
+            "position": "pre",
+            "measure": "story_relatedness",
+            "exclude": ("gt", "timestamp", 30000),
+        }
+    )
+    sr4_df = load_per_participant_data(
+        {
+            "combined_configs": combined_configs_ratings_day2,
+            "position": "post",
+            "measure": "story_relatedness",
+            "exclude": ("gt", "timestamp", 30000),
+        }
+    )
+    sr_diff_sr4_sr3 = sr4_df - sr3_df
+
+    results_dict = {
+        "linger_rating_1": {},
+        "linger_rating_2": {},
+        "linger_24h_rating_2": {},
+        "sr2_minus_sr1_first_30s": {},
+        "sr4_minus_sr3_first_30s": {},
+    }
+
+    for rii_measure in rii_measures:
+        results_dict["linger_rating_1"][rii_measure] = correlate_two(
+            {
+                "x_measure": rii_measure,
+                "y_measure": "linger_rating_1",
+                "combined_configs": combined_configs_questionnaire,
+                "threshold": P_DISPLAY_THRESHOLD,
+                "verbose": False,
+            },
+        )
+
+        results_dict["sr2_minus_sr1_first_30s"][rii_measure] = correlate_two(
+            {
+                "x_measure": rii_measure,
+                "y_measure": "story_relatedness",
+                "config1": {
+                    "combined_configs": combined_configs_questionnaire,
+                },
+                "threshold": P_DISPLAY_THRESHOLD,
+                "verbose": False,
+            },
+            data2_df=sr_diff_sr2_sr1,
+        )
+
+        results_dict["linger_24h_rating_2"][rii_measure] = correlate_two(
+            {
+                "x_measure": rii_measure,
+                "y_measure": "linger_24h_rating_2",
+                "combined_configs": combined_configs_questionnaire,
+                "threshold": P_DISPLAY_THRESHOLD,
+                "verbose": False,
+            },
+        )
+        results_dict["sr4_minus_sr3_first_30s"][rii_measure] = correlate_two(
+            {
+                "x_measure": rii_measure,
+                "y_measure": "story_relatedness",
+                "config1": {
+                    "combined_configs": combined_configs_questionnaire,
+                },
+                "threshold": P_DISPLAY_THRESHOLD,
+                "verbose": False,
+            },
+            data2_df=sr_diff_sr4_sr3,
+        )
+        results_dict["linger_rating_2"][rii_measure] = correlate_two(
+            {
+                "x_measure": rii_measure,
+                "y_measure": "linger_rating_2",
+                "combined_configs": combined_configs_questionnaire,
+                "threshold": P_DISPLAY_THRESHOLD,
+                "verbose": False,
+            },
+        )
+
+    console.print("\nTable: RII correlations", style="yellow")
+
+    print("    \\begin{tabular}{l | ccccc}")
+    print(
+        "        "
+        " & \\makecell{Increase in Story Relatedness\\\\Day 1}"
+        "& \\makecell{Immediate Lingering\\\\Day 1}"
+        " & \\makecell{Extended\\\\Lingering}"
+        " & \\makecell{Increase in Story Relatedness\\\\Day 2}"
+        "& \\makecell{Immediate Lingering\\\\Day 2}\\\\"
+    )
+    print("        \\hline")
+
+    for rii_measure, rii_name in rii_measures.items():
+        print("        \\hline")
+        print(f"        \\makecell{{{rii_name}}}", end="")
+
+        for dependent_variable in [
+            "sr2_minus_sr1_first_30s",
+            "linger_rating_1",
+            "linger_24h_rating_2",
+            "sr4_minus_sr3_first_30s",
+            "linger_rating_2",
+        ]:
+            result = results_dict[dependent_variable][rii_measure]
+
+            # r2 = float(result.rsquared)
+            r = result.rsquared**0.5
+            if result.params[1] < 0:
+                r = -r
+            pvalue = float(result.pvalues[1])
+
+            threshold = P_DISPLAY_THRESHOLD
+            if pvalue < (threshold - 0.2 * threshold):
+                pstring = f"p < {threshold}".replace("0.", ".")
+            elif pvalue < 0.09:
+                pstring = f"p = {cut_small_value(pvalue)}"
+            else:
+                pstring = f"p = {str(round(pvalue, 2))[1:]}"
+
+            print(
+                f" &\n        \\makecell{{$r = {r:.2f}$\\\\${pstring}$}}",
+                end="",
+            )
+
+        print("\\\\")
+
+    print("    \\end{tabular}")
+
+    return
+
+
+def suppl_linger_multi_day_submission_time():
+    console.print("\nSUPPL: Linger multi-day submission time", style="red bold")
+
+    multi_day_pooled_color_map = {
+        "Day 1": COL_NEUTRALCUE2,
+        "Day 2": "#09A000",
+    }
+    multi_day_category_orders = {
+        "condition": ["Day 1", "Day 2"],
+    }
+    multi_day_legend_name_mapping = {
+        "Day 1, post": "Day 1 (Baseline) - Post",
+        "Day 1, pre": "Day 1 (Baseline) - Pre",
+        "Day 2, post": "Day 2 (Suppress) - Post",
+        "Day 2, pre": "Day 2 (Suppress) - Pre",
+    }
+
+    def _load_pooled(story: str, condition: str, position: str, day_label: str):
+        df = func_load(
+            {
+                "mode": "word_time",
+                "story": story,
+                "condition": condition,
+                "position": position,
+                "align_timestamp": None,
+            }
+        )
+        df = df.copy()
+        df["story"] = "pooled"
+        df["condition"] = day_label
+        df["position"] = position
+        return df
+
+    dfs = [
+        _load_pooled("carver_original", "multi_day_carver_july", "pre", "Day 1"),
+        _load_pooled("carver_original", "multi_day_carver_july", "post", "Day 1"),
+        _load_pooled("july_original", "multi_day_july_carver", "pre", "Day 1"),
+        _load_pooled("july_original", "multi_day_july_carver", "post", "Day 1"),
+        _load_pooled("july_original", "multi_day_carver_july", "pre", "Day 2"),
+        _load_pooled("july_original", "multi_day_carver_july", "post", "Day 2"),
+        _load_pooled("carver_original", "multi_day_july_carver", "pre", "Day 2"),
+        _load_pooled("carver_original", "multi_day_july_carver", "post", "Day 2"),
+    ]
+    combined_df = pd.concat(dfs, axis=0)
+    combined_df = combined_df.copy()
+    combined_df["log_word_time"] = np.log1p(combined_df["word_time"].astype(float))
+    combined_df["log_key_onset"] = np.log1p(combined_df["key_onset"].astype(float))
+
+    base_plot_config = {
+        "mode": "word_time",
+        "step": 30000,
+        "align_timestamp": None,
+        "min_bin_n": 10,
+        "title": None,
+        "x_title": "Time from start of free association",
+        "x_title_font_size": 42,
+        "y_title_font_size": 42,
+        "x_rangemode": "tozero",
+        "x_tickfont": dict(size=36),
+        "y_tickfont": dict(size=36),
+        "x_ticks": "outside",
+        "x_skip_first_tick": True,
+        "x_tickwidth": 7,
+        "y_tickwidth": 7,
+        "y_tickvals": None,
+        "y_ticktext": None,
+        "axes_linewidth": 7,
+        "marker_size": 21,
+        "line_width": 5,
+        "x_showgrid": False,
+        "y_showgrid": False,
+        "axes_linecolor": AXES_COLOR_SUPPL,
+        "axes_tickcolor": AXES_COLOR_SUPPL,
+        "x_title_font_color": COL1,
+        "y_title_font_color": COL1,
+        "font_color": COL1,
+        "bgcolor": COL_BG,
+        "bootstrap": True,
+        "n_bootstrap": N_BOOTSTRAP,
+        "ci": 0.95,
+        "showlegend": True,
+        "legend": LEGEND_TOP_LEFT_MEDIUM,
+        "show": False,
+        "color": "condition",
+        "symbol": "position",
+        "symbol_map": SYMBOL_MAP_POSITION,
+        "category_orders": multi_day_category_orders,
+        "color_map": multi_day_pooled_color_map,
+        "legend_name_mapping": multi_day_legend_name_mapping,
+        "study": STUDY_SUPPL,
+        "save": True,
+        "scale": 2,
+        "width": 990,
+        "height": 660,
+        "filetype": FILETYPE,
+    }
+
+    console.print("\n > Multi-day word time (pre vs post)", style="yellow")
+    func_plot_by_time(
+        config={
+            **base_plot_config,
+            "column": "word_time",
+            "y_title": "Submission time (ms)",
+            "y_range": [2100, 5100],
+            "filepostfix": "suppl_multi_day_word_time_pre_post_pooled",
+            "width": 1200,
+        },
+        data_df=combined_df,
+    )
+
+    # console.print("\n > Multi-day word time (post)", style="yellow")
+    # func_plot_by_time(
+    #     config={
+    #         **base_plot_config,
+    #         "column": "word_time",
+    #         "y_title": "Submission time (ms)",
+    #         "y_range": WORD_TIME_Y_RANGE,
+    #         "filepostfix": "suppl_multi_day_word_time_post_pooled",
+    #     },
+    #     data_df=combined_df.loc[combined_df["position"] == "post"],
+    # )
+
+    # console.print("\n > Multi-day key onset (pre vs post)", style="yellow")
+    # func_plot_by_time(
+    #     config={
+    #         **base_plot_config,
+    #         "column": "key_onset",
+    #         "y_title": "Key-onset time (ms)",
+    #         "y_range": None,
+    #         "filepostfix": "suppl_multi_day_key_onset_pre_post_pooled",
+    #     },
+    #     data_df=combined_df,
+    # )
+
+    # console.print("\n > Multi-day key onset (post)", style="yellow")
+    # func_plot_by_time(
+    #     config={
+    #         **base_plot_config,
+    #         "column": "key_onset",
+    #         "y_title": "Key-onset time (ms)",
+    #         "y_range": None,
+    #         "filepostfix": "suppl_multi_day_key_onset_post_pooled",
+    #     },
+    #     data_df=combined_df.loc[combined_df["position"] == "post"],
+    # )
+
+    # console.print(
+    #     "\n > Multi-day log submission time (pre vs post), PNG", style="yellow"
+    # )
+    # func_plot_by_time(
+    #     config={
+    #         **base_plot_config,
+    #         "column": "log_word_time",
+    #         "y_title": "Log submission time<br>(ln(1 + ms))",
+    #         "y_range": None,
+    #         "filetype": "png",
+    #         "filepostfix": "suppl_multi_day_word_time_pre_post_pooled_log",
+    #     },
+    #     data_df=combined_df,
+    # )
+
+    # console.print("\n > Multi-day log submission time (post), PNG", style="yellow")
+    # func_plot_by_time(
+    #     config={
+    #         **base_plot_config,
+    #         "column": "log_word_time",
+    #         "y_title": "Log submission time<br>(ln(1 + ms))",
+    #         "y_range": None,
+    #         "filetype": "png",
+    #         "filepostfix": "suppl_multi_day_word_time_post_pooled_log",
+    #     },
+    #     data_df=combined_df.loc[combined_df["position"] == "post"],
+    # )
+
+    # console.print("\n > Multi-day log key onset (pre vs post), PNG", style="yellow")
+    # func_plot_by_time(
+    #     config={
+    #         **base_plot_config,
+    #         "column": "log_key_onset",
+    #         "y_title": "Log key-onset time<br>(ln(1 + ms))",
+    #         "y_range": None,
+    #         "filetype": "png",
+    #         "filepostfix": "suppl_multi_day_key_onset_pre_post_pooled_log",
+    #     },
+    #     data_df=combined_df,
+    # )
+
+    # console.print("\n > Multi-day log key onset (post), PNG", style="yellow")
+    # func_plot_by_time(
+    #     config={
+    #         **base_plot_config,
+    #         "column": "log_key_onset",
+    #         "y_title": "Log key-onset time<br>(ln(1 + ms))",
+    #         "y_range": None,
+    #         "filetype": "png",
+    #         "filepostfix": "suppl_multi_day_key_onset_post_pooled_log",
+    #     },
+    #     data_df=combined_df.loc[combined_df["position"] == "post"],
+    # )
+
+
 def suppl_thought_entries_mlm():
     console.print("\nSUPPL: Mixed-effect linear model", style="red bold")
 
@@ -8970,7 +12319,6 @@ def suppl_thought_entries_mlm():
             "assumptions_save": True,
             "assumptions_width": 1200,
             "assumptions_height": 2400,
-            "assumptions_show": False,
             "study": STUDY_SUPPL,
         }
     )
@@ -9021,19 +12369,195 @@ def submission_demographic_exclusion_stats():
     )
 
 
+def suppl_info_story_end_separated_continued():
+    console.print(
+        "\nSupplemental Methods: New Story End: Separated, Continued", style="red bold"
+    )
+
+    console.print("\nManipulation believed: ", style="yellow")
+    # they all answered yes.
+    plot_distribution(
+        {
+            "load_spec": (
+                "story",
+                {
+                    "carver_original": (
+                        "condition",
+                        {
+                            "interference_story_spr_end_continued": POST_NOFILTER,
+                            "interference_story_spr_end_separated": POST_NOFILTER,
+                        },
+                    )
+                },
+            ),
+            # plot data config
+            "measure": "manipulation_believed",
+            "auto_exclude": True,
+            # plot config
+            # "title": "While reading Part 2 I was<br>trying to relate it to Part 1.",
+            "title": "",
+            "y_range": None,
+            "color_sequence": COLOR_SEQUENCE_ORDERED,
+            "category_orders": ORDER_CONDITIONS,
+            "orientation": "h",
+            "showlegend": False,
+            "x_ticktext": [],
+            "x_tickvals": [],
+            "x_tickfont": dict(size=36),
+            "y_tickfont": dict(size=36),
+            "x_tickwidth": 7,
+            "y_tickwidth": 7,
+            "axes_linewidth": 7,
+            "x_title": "Answer",
+            "y_title": "Believed manipulation",
+            "x_title_font_size": 42,
+            "y_title_font_size": 42,
+            "bargap": None,
+            "x_showgrid": False,
+            "y_showgrid": False,
+            "axes_linecolor": COL1,
+            "x_title_font_color": COL1,
+            "y_title_font_color": COL1,
+            "font_color": COL1,
+            "bgcolor": COL_BG,
+            "legend": None,
+            # bootstrap
+            "bootstrap": True,
+            "n_bootstrap": N_BOOTSTRAP,
+            "ci": 0.95,
+            # save config
+            "save": True,
+            "width": 720,
+            "height": 420,
+            "scale": 2.0,
+            "filepostfix": "suppl_mb",
+            "study": STUDY,
+            "filetype": FILETYPE,
+        }
+    )
+
+
+def suppl_info_effect_size_last_30s():
+    console.print("\nSupplemental Methods: Effect size last 30s", style="red bold")
+
+    console.print("\n > Neutralcue2 (150s-180s)", style="yellow")
+    test_two(
+        {
+            "name1": "Post (150s-180s)",
+            "name2": "Pre (150s-180s)",
+            "story": "carver_original",
+            "condition": "neutralcue2",
+            "config1": {"position": "post"},
+            "config2": {"position": "pre"},
+            "exclude": [("lte", "timestamp", 150000), ("gte", "timestamp", 180000)],
+            "measure": "story_relatedness",
+            "ratings": RATINGS_CARVER,
+            "test_type": "wilcoxon",
+            "threshold": P_DISPLAY_THRESHOLD,
+        }
+    )
+
+    console.print("\n > Neutralcue (270s-300s)", style="yellow")
+    test_two(
+        {
+            "name1": "Post (270s-300s)",
+            "name2": "Pre (270s-300s)",
+            "story": "carver_original",
+            "condition": "neutralcue",
+            "config1": {"position": "post"},
+            "config2": {"position": "pre"},
+            "exclude": [("lte", "timestamp", 270000), ("gte", "timestamp", 300000)],
+            # "exclude": [("lte", "timestamp", 150000), ("gte", "timestamp", 180000)],
+            "measure": "story_relatedness",
+            "ratings": RATINGS_CARVER,
+            "test_type": "wilcoxon",
+            "threshold": P_DISPLAY_THRESHOLD,
+        }
+    )
+
+
+def suppl_plot_correlation_sr_st():
+    console.print(
+        "\nSUPPL:Corr story relatedness and story thoughts",
+        style="red bold",
+    )
+
+    plot_scatter_measures(
+        {
+            "load_spec": (
+                "all",
+                {
+                    "all": (
+                        "story",
+                        {
+                            "carver_original": (
+                                "condition",
+                                {"button_press": POST_NOFILTER},
+                            )
+                        },
+                    )
+                },
+            ),
+            "aggregate_on": "condition",
+            # on what measure
+            "x_measure": "mean_sr_post",
+            "y_measure": "total_double_press_count_post",
+            # plot config
+            "color": "condition",
+            # "x_range": [0.9, 7.09],
+            "y_range": None,
+            "x_title": "Story relatedness",
+            "y_title": "Story thoughts",
+            "color_sequence": ["#F74639"],
+            "x_showgrid": False,
+            "y_showgrid": False,
+            # "x_tickvals": [1, 2, 3, 4, 5, 6, 7],
+            # "x_ticktext": ["1", "2", "3", "4", "5", "6", "7"],
+            "trendline_color": COL1,
+            "tickcolor": COL1,
+            "axes_linecolor": COL1,
+            "axes_tickcolor": COL1,
+            "axes_linewidth": 7,
+            "x_tickwidth": 7,
+            "y_tickwidth": 7,
+            "y_tickfont": dict(color=COL1, size=36),
+            "x_tickfont": dict(color=COL1, size=36),
+            "x_title_font_color": COL1,
+            "y_title_font_color": COL1,
+            "font_color": COL1,
+            "bgcolor": COL_BG,
+            "showlegend": False,
+            # bootstrap
+            "n_bootstrap": N_BOOTSTRAP,
+            # save config
+            "save": True,
+            "width": 660,
+            "height": 660,
+            "scale": 2.0,
+            "filepostfix": "suppl_sr_st",
+            "study": STUDY_SUPPL,
+            "filetype": FILETYPE_SUPPL,
+            "regression": True,
+            "regression_on_plot": True,
+        }
+    )
+
+
 def main():
+    # Preview intro
+    stats_preview_intro()
+
     # Results
     console.print("\n\nResults", style="red bold")
     #    Narrative content persists in mind, influencing thought and behavior.
     stats_experiment_1_button_press()
     plots_fig_1_paradigm_results1()
 
-    #    Narrative content persists without and against volition.
+    #    Narrative persistence was not abolished by volitional suppression.
     stats_experiment_2_button_press_suppress()
     plots_fig_2_results2()
 
-    #    Narrative content does not persist in limited capacity short-term memory
-    #    N2 geometry
+    #    Persistence was invariant to the content of post-reading tasks
     stats_experiment_3_interference()
     plots_fig_3_results3()
 
@@ -9041,45 +12565,111 @@ def main():
     stats_experiment_4_continued_separated()
     plots_fig_4_results()
 
-    # Supplemental materials/figures
+    # Integrating unrelated material prolonged mental persistence
     console.print("\n\nMethods", style="red bold")
     suppl_methods_experiment_overview()
     suppl_methods_procedure_numbers()
     suppl_demographic_stats()
+    suppl_methods_stats_words_rated()
+    submission_demographic_exclusion_stats()
 
     console.print("\n\nSupplementary Information", style="red bold")
-    suppl_stats_words_generated()
+    # 5 Most common associates occurring during free association
+    suppl_methods_stats_words_generated()
+
+    # 6 Rate of decrease of story and food thoughts
     suppl_thought_entries_mlm()
+
+    # 7 Suppression: Preserved correlation between story thoughts and
+    #   story-relatedness under
+    suppl_plots_sr_st_suppress()
+
+    # 8 Self-reports of volition during the persistence of mental content
     suppl_plots_stats_volition()
+
+    # 9 Restricting analyses to participants reporting unintentional persistence
     suppl_stats_unintentional()
+
+    # 10 Self-reports of free association strategies
     suppl_plots_stats_wcg_strategy()
+
+    # 11 Relationship between transportation and measures of persistence
     suppl_transp_and_pmc()
+
+    # 12 Interference task performance
     suppl_interference_task_performance()
+
+    # 13 Weak evidence for recency effect of late vs early story elements
+    suppl_stats_persistence_recency_correlations()
+    suppl_plots_persistence_recency_correlations()
+
+    # 14 Inconsistent evidence for disruption recency effect
+    suppl_stats_persistence_recency_correlations_difference()
+    suppl_plots_recency_difference_across_conditions()
+
+    # extra recency analyses not included in manuscript
+    # suppl_plots_persistence_recency_correlations_difference()
+    # suppl_intuitive_meaning_match_scores()
+    # suppl_stats_persistence_without_recency()
+    # suppl_plots_persistence_without_recency()
+    # suppl_plots_match_score_by_sections()
+
+    # 15 Integration and separation of new story in New Story condition
     suppl_stats_plots_new_story_separated_integrated()
 
-    # suppl results
+    # 16 Results: Suppress No Button Press condition
     suppl_plots_stats_suppress_no_button_press()
+
+    # 17 Results: Pause and End Cue + Pause
     suppl_plots_stats_pause_and_end_pause_cue()
+
+    # 18 Results: New Story Alone condition
     suppl_plots_stats_lightbulb()
 
+    # 19 Results: Multi Day condition
+    suppl_linger_multi_day_stats()
+    suppl_linger_multi_day_plots()
+    suppl_stats_rii_correlations()
+    suppl_linger_multi_day_submission_time()
+
+    # 20 Persistence of new story after original story
     suppl_plots_stats_lightbulb_after_carver()
+
+    # 21 Submission time of associates
     suppl_stats_submission_time()
     suppl_plots_submission_time()
+
+    # 22 Data curves with number of associates as x-axis
     suppl_plots_by_words()
+
+    # 23 Data curves with excluded time bins
     suppl_plots_all_bins()
 
-    # pre-registration analyses not covered before
-    suppl_prereg_volition()
-    suppl_prereg_plot_interference()
-    suppl_prereg_baseline()
-    suppl_prereg_continued_separated_delayed_continued()
-    suppl_prereg_tom()
-    suppl_prereg_geometry()
-    suppl_prereg_new_story()
+    # 24 Preregistered analyses
     suppl_prereg_table_interference()
+    suppl_prereg_plot_interference()
+    # 24.1 Intact & Suppress condition
+    suppl_prereg_volition()
+    # 24.3 Baseline condition
+    suppl_prereg_baseline()
+    # 24.4 ToM condition
+    suppl_prereg_tom()
+    # 24.5 Geometry condition
+    suppl_prereg_geometry()
+    # 24.7 New Story condition
+    suppl_prereg_new_story()
+    # 24.9 Continued, Separated, and Delayed Continued condition
+    suppl_prereg_continued_separated_delayed_continued()
+    # 24.10 Multi Day Condition
+    suppl_prereg_linger_multi_day()
 
-    submission_demographic_exclusion_stats()
-    print("\nDone")
+    # Explorations & information not included in manuscript or supplement.
+    suppl_choice_baseline_fig_3_and_distribution_first_bin_aligned()
+    suppl_info_story_end_separated_continued()
+    suppl_info_effect_size_last_30s()
+    suppl_plot_correlation_sr_st()
+
+    console.print("\nDone", style="green bold")
 
 
 if __name__ == "__main__":

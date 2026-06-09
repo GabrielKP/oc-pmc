@@ -21,6 +21,7 @@ from oc_pmc.do_import.linger_interference_story_spr_end import (
     do_import_linger_interference_story_spr_end,
 )
 from oc_pmc.do_import.linger_interference_tom import do_import_linger_interference_tom
+from oc_pmc.do_import.linger_multi_day import do_import_linger_multi_day
 from oc_pmc.do_import.linger_neutralcue2 import do_import_linger_neutralcue2
 from oc_pmc.do_import.linger_volition_button_press import (
     do_import_volition_button_press,
@@ -41,6 +42,7 @@ def do_import_all():
     do_import_linger_interference_story_spr()
     do_import_linger_interference_story_spr_end()
     do_import_linger_interference_tom()
+    do_import_linger_multi_day()
     do_import_linger_neutralcue2()
     do_import_volition_button_press()
     do_import_linger_volition_button_press_suppress()

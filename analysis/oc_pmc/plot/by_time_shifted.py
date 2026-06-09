@@ -226,7 +226,7 @@ def func_plot_by_time(
 
         mean_aggregated = mean_aggregated_participant.groupby(
             grouping_columns
-        ).aggregate({"double_press": "sum"})
+        ).aggregate({"double_press": "sum"})  # type: ignore
 
         # participant_counts is not indexed by bins, have to remove it:
         index_bins = grouping_columns.index("bins")
@@ -238,7 +238,7 @@ def func_plot_by_time(
         for idx_group in mean_aggregated.index:
             mean_aggregated.loc[idx_group, "double_press"] = (
                 mean_aggregated.loc[idx_group, "double_press"]
-                / participant_count.loc[remove_bins_index(index_bins, idx_group)]
+                / participant_count.loc[remove_bins_index(index_bins, idx_group)]  # type: ignore
             )  # type: ignore
 
         def sample_agg_te_func(
@@ -247,19 +247,19 @@ def func_plot_by_time(
             participant_count: pd.DataFrame,
             index_bins: int,
         ) -> pd.DataFrame:
-            mean_resampled = (
+            mean_resampled: pd.DataFrame = (
                 data_df.groupby([*grouping_columns, "participantID"], observed=False)
                 .aggregate({"double_press": "sum"})  # sum within participant
                 .groupby(grouping_columns, observed=True)
                 .sample(frac=1, replace=True)  # sample out of participants
                 .groupby(grouping_columns, observed=False)
                 .aggregate({"double_press": "sum"})  # sum over double presses
-            )
+            )  # type: ignore
             for idx_group in mean_resampled.index:
                 mean_resampled.loc[idx_group, "double_press"] = (
                     mean_resampled.loc[idx_group, "double_press"]
                     / participant_count.loc[remove_bins_index(index_bins, idx_group)]
-                )  # type: ignore
+                )
             return mean_resampled
 
         bootstrap_func = sample_agg_te_func
@@ -286,6 +286,56 @@ def func_plot_by_time(
                 .agg({column: summary_func})
                 .reset_index()
             )
+
+            # 1.5 optionally ensure that participants in different groups of specified
+            # column are present in both groups.
+            # (e.g. only include participant in data plot for post if they also have
+            # pre data)
+            if config.get("equalize_participants_on_column", None) is not None:
+                equalize_participants_on_column: str = config[
+                    "equalize_participants_on_column"
+                ]
+                new_sample_df_ls: list[pd.DataFrame] = list()
+                grouping_columns_no_equalizing_column = list(
+                    filter(
+                        lambda x: x != equalize_participants_on_column,
+                        grouping_columns,
+                    )
+                )
+                for group_key, group_df in sample_df.groupby(
+                    grouping_columns_no_equalizing_column
+                ):
+                    col_vals: list[str] = (
+                        group_df[equalize_participants_on_column].unique().tolist()
+                    )
+
+                    shared_pIDS = set()
+                    all_pIDS = set()
+                    for col_val in col_vals:
+                        group_df_val: pd.DataFrame = group_df.loc[
+                            group_df[equalize_participants_on_column] == col_val
+                        ]
+                        if len(shared_pIDS) == 0:
+                            shared_pIDS.update(group_df_val["participantID"].unique())
+                        shared_pIDS.intersection_update(
+                            group_df_val["participantID"].unique()
+                        )
+                        all_pIDS.update(group_df_val["participantID"].unique())
+
+                    filtered_group_df: pd.DataFrame = group_df.loc[
+                        group_df["participantID"].isin(shared_pIDS)  # type: ignore
+                    ]
+
+                    if len(all_pIDS) != len(shared_pIDS):
+                        log.info(
+                            "Equalized participants for"
+                            f" '{equalize_participants_on_column}' at {group_key}:"
+                            f" {len(all_pIDS)=} != {len(shared_pIDS)=}"
+                        )
+
+                    new_sample_df_ls.append(filtered_group_df)
+
+                sample_df = pd.concat(new_sample_df_ls)
 
             # 2. Pivot (unnecessary, but matched with bootstrap to avoid bugs)
             grouping_columns_no_bins = list(
@@ -345,7 +395,7 @@ def func_plot_by_time(
         else:
             mean_aggregated = data_df.groupby(grouping_columns, observed=False).agg(
                 {column: "mean"}
-            )
+            )  # type: ignore
 
             def sample_agg_func(
                 data_df: pd.DataFrame,
@@ -357,7 +407,7 @@ def func_plot_by_time(
                     .sample(frac=1, replace=True)
                     .groupby(grouping_columns, observed=False)
                     .aggregate({column: "mean"})
-                )
+                )  # type: ignore
 
             bootstrap_func = sample_agg_func
             bootstrap_args = dict(
@@ -398,9 +448,9 @@ def func_plot_by_time(
         how="left",
     )
 
-    mean_aggregated = mean_aggregated[
+    mean_aggregated: pd.DataFrame = mean_aggregated[
         mean_aggregated_w_count["obs_count"] >= config.get("min_bin_n", 1)
-    ]
+    ]  # type: ignore
 
     plot_df = mean_aggregated.reset_index()
 
@@ -452,6 +502,7 @@ def func_plot_by_time(
             tickmode="array",
             ticks=config.get("x_ticks", "outside"),
             tickwidth=config.get("x_tickwidth"),
+            ticklen=config.get("x_ticklen"),
             rangemode=config.get("x_rangemode"),
             range=config.get("x_range", (min(x_tickvals), None)),
             tickvals=x_tickvals,
@@ -463,6 +514,7 @@ def func_plot_by_time(
             tickfont=config.get("x_tickfont", dict(size=32)),
             tickangle=config.get("tickangle", 0),
             showgrid=config.get("x_showgrid", True),
+            gridcolor=config.get("axes_gridcolor"),
         ),
         yaxis=dict(
             title=config.get("y_title"),
@@ -472,6 +524,7 @@ def func_plot_by_time(
             range=config.get("y_range"),
             ticks=config.get("y_ticks", "outside"),
             tickwidth=config.get("y_tickwidth", 6),
+            ticklen=config.get("y_ticklen"),
             tickmode="array",
             tickvals=config.get("y_tickvals"),
             ticktext=config.get("y_ticktext"),
@@ -481,7 +534,11 @@ def func_plot_by_time(
             linecolor=config.get("axes_linecolor", "black"),
             tickfont=config.get("y_tickfont", dict(size=32)),
             showgrid=config.get("y_showgrid", True),
+            gridcolor=config.get("axes_gridcolor"),
         ),
+        title=config.get("title"),
+        title_font_size=config.get("title_font_size", 32),
+        title_font_color=config.get("title_font_color", "black"),
         font_family=config.get("font_family", "verdana"),
         font_color=config.get("font_color"),
         # https://plotly.com/python/reference/layout/#layout-legend
@@ -491,9 +548,15 @@ def func_plot_by_time(
         paper_bgcolor=config.get("bgcolor", "white"),
     )
     fig.update_traces(
-        marker=dict(size=config.get("marker_size", 20)),
+        marker=dict(
+            size=config.get("marker_size", 20), line=config.get("marker_line", None)
+        ),
         line=dict(width=config.get("line_width", 4)),
     )
+    if config.get("update_trace_dicts"):
+        for update_trace_dict in config["update_trace_dicts"]:
+            fig.update_traces(**update_trace_dict)
+
     if config.get("legend_name_mapping"):
         # https://stackoverflow.com/a/64378982
         fig.for_each_trace(
@@ -531,6 +594,316 @@ def plot_by_time_shifted(config):
         config,
         load_func=func_load,
         call_func=func_plot_by_time,
+        no_extra_columns=False,
+    )
+
+
+def func_plot_by_time_pre_post(
+    config: dict,
+    data_df: pd.DataFrame,
+) -> go.Figure:
+    """For given condition, computes mean and error bars of the story relatedness"""
+
+    log.info(f"Plotting for {config}")
+
+    step = config["step"]
+    x_column = "timestamp" if not config.get("x_column") else config["x_column"]
+
+    # compute mean over column of interest
+    column: str = config["column"]
+
+    # replace specified columns
+    if config.get("replace_columns") is not None:
+        for colname, col_replace_dct in config["replace_columns"].items():
+            if not isinstance(col_replace_dct, dict):
+                raise ValueError(
+                    f"col_replace_dct has to be a dct not: {type(col_replace_dct)}"
+                )
+            data_df[colname] = data_df[colname].replace(col_replace_dct)
+
+    # update grouping columns
+    grouping_columns = ["story", "condition", "position", "bins"]
+    if config.get("additional_grouping_columns"):
+        grouping_columns += config["additional_grouping_columns"]
+
+    # merge two values (e.g. for colors to be conditioned on both):
+    if config.get("merged_columns"):
+        data_df["merged_columns"] = data_df[config["merged_columns"][0]]
+        for colname in config["merged_columns"][1:]:
+            data_df["merged_columns"] = (
+                data_df["merged_columns"] + "-" + data_df[colname]
+            )
+        # need to add to grouping columns
+        grouping_columns += ["merged_columns"]
+
+        # need to remove the individual columns
+        grouping_columns = list(
+            filter(lambda x: x not in config["merged_columns"], grouping_columns)
+        )
+
+    # Need to determine min x value: take closest multiple to "step"
+    min_x = config.get(
+        "min_x",
+        (min(data_df[x_column]) // step) * step,
+    )
+    max_x = config.get(
+        "max_x",
+        # accomodate largest value                            | don't remember why
+        int(np.ceil(max(data_df[x_column]) / step)) * step + step - 1,
+    )
+
+    # bin rows
+    bins = np.arange(min_x, max_x + 1, step)
+    n_bins = len(bins) - 1
+    bin_labels = [i + 0.5 for i in range(n_bins)]
+    data_df["bins"] = pd.cut(data_df[x_column], bins=bins, labels=bin_labels)
+
+    # Remove position from grouping columns
+    grouping_columns = list(filter(lambda x: x != "position", grouping_columns))
+    # 1. Within participant mean
+    sample_pre_post_df: pd.DataFrame = (
+        data_df.groupby(["participantID", *grouping_columns, "position"], observed=True)
+        .agg({column: "mean"})
+        .reset_index()
+        .set_index(["participantID", *grouping_columns])
+    )
+    sample_pre_df: pd.DataFrame = sample_pre_post_df.loc[
+        sample_pre_post_df["position"] == "pre"
+    ].drop("position", axis=1)
+    sample_post_df: pd.DataFrame = sample_pre_post_df.loc[
+        sample_pre_post_df["position"] == "post"
+    ].drop("position", axis=1)
+
+    # 2. Post - Pre
+    sample_df: pd.DataFrame = (sample_post_df - sample_pre_df).reset_index()
+
+    # 3. Pivot (unnecessary, but matched with bootstrap to avoid bugs)
+    grouping_columns_no_bins = list(filter(lambda x: x != "bins", grouping_columns))
+    sample_wide_df = sample_df.pivot(
+        columns="bins",
+        index=["participantID", *grouping_columns_no_bins],
+        values=column,
+    ).reset_index(list(range(1, len(grouping_columns_no_bins) + 1)))
+
+    # 4. Bin means
+    bin_mean_wide_df = sample_wide_df.groupby(
+        grouping_columns_no_bins, as_index=False
+    ).mean()
+
+    # 3. Unpivot
+    mean_aggregated = bin_mean_wide_df.melt(
+        id_vars=grouping_columns_no_bins, value_name=column
+    ).set_index([*grouping_columns_no_bins, "bins"])
+
+    # 3. Define bootstrap procedure
+    def sample_agg_func_within_participants(
+        sample_wide_df: pd.DataFrame,
+        sample_wide_pID_series: pd.Series,
+        grouping_columns_no_bins: list[str],
+    ) -> pd.DataFrame:
+        # 1. Resample participants
+        chosen_ids = sample_wide_pID_series.sample(frac=1, replace=True)
+        resample_df: pd.DataFrame = sample_wide_df.loc[chosen_ids]  # type: ignore
+
+        # 2. Bin means
+        bin_mean_wide_df = resample_df.groupby(
+            grouping_columns_no_bins, as_index=False
+        ).mean()
+
+        # 3. unpivot
+        return bin_mean_wide_df.melt(id_vars=grouping_columns_no_bins).set_index(
+            [*grouping_columns_no_bins, "bins"]
+        )
+
+    sample_wide_pID_series = sample_wide_df.index.unique().to_series()
+    bootstrap_df = sample_wide_df
+
+    # need to separate pre and post counts
+    grouped_bins = (
+        data_df.groupby(["position", *grouping_columns], observed=False)
+        .count()
+        .groupby(grouping_columns)
+        .min()
+    )
+    n_observations_per_bin = grouped_bins[grouped_bins.columns[0]]
+
+    # bootstrap
+    if config.get("bootstrap"):
+        # data_df
+        lowers_df, uppers_df = bootstrap_with_groups(
+            config,
+            bootstrap_df.copy(),
+            sample_agg_func_within_participants,
+            aggregation_args=dict(
+                grouping_columns_no_bins=grouping_columns_no_bins,
+                sample_wide_pID_series=sample_wide_pID_series,
+            ),
+        )
+        # have to subtract/add the actual mean to get 'error' only
+        lowers_df["ci_lower"] = mean_aggregated[column] - lowers_df["ci_lower"]
+        uppers_df["ci_upper"] = uppers_df["ci_upper"] - mean_aggregated[column]
+        mean_aggregated = mean_aggregated.join(lowers_df).join(uppers_df)
+
+    # filter bins that are too empty
+    # mean_aggregated may have deleted empty bins due to the pivot function, thus need
+    # to merge
+    n_observations_per_bin.name = "obs_count"  # type: ignore
+    mean_aggregated_w_count = pd.merge(
+        mean_aggregated,
+        n_observations_per_bin.to_frame(),  # type: ignore
+        left_index=True,
+        right_index=True,
+        how="left",
+    )
+
+    mean_aggregated = mean_aggregated[
+        mean_aggregated_w_count["obs_count"] >= config.get("min_bin_n", 1)
+    ]
+
+    plot_df = mean_aggregated.reset_index()
+
+    # x tickvals
+    x_tickvals = [i for i in range(n_bins + 1)]
+    x_ticktext = [f"{int(i // 1000)}s" for i in bins]
+
+    if config.get("x_skip_first_tick", False):
+        x_ticktext[0] = ""
+
+    if config.get("offset_config") is not None:
+        for colname, colvalue_offsets in config["offset_config"].items():
+            for colvalue, offset in colvalue_offsets:
+                plot_df.loc[plot_df[colname] == colvalue, "bins"] += offset
+
+    # plot
+    plot_df = plot_df.sort_values(grouping_columns)
+    # https://plotly.com/python-api-reference/generated/plotly.express.line
+    fig = px.line(
+        plot_df,
+        x="bins",
+        y=column,
+        color=config.get("color"),
+        symbol=config.get("symbol"),
+        facet_row=config.get("facet_row"),
+        line_dash=config.get("line_dash", config.get("symbol")),
+        color_discrete_sequence=cast(list, config.get("color_sequence")),
+        markers=True,
+        error_y="ci_upper" if config.get("bootstrap") else None,
+        error_y_minus="ci_lower" if config.get("bootstrap") else None,
+        category_orders=config.get("category_orders"),
+        color_discrete_map=config.get("color_map"),
+        symbol_map=config.get("symbol_map"),
+        line_dash_map=config.get(
+            "line_dash_map"
+        ),  # ['solid', 'dot', 'dash', 'longdash', 'dashdot', 'longdashdot']
+    )
+    fig.update_layout(
+        xaxis=dict(
+            title=config.get("x_title"),
+            title_font_size=config.get("x_title_font_size", 32),
+            title_standoff=config.get("x_title_standoff", 25),
+            title_font_color=config.get("x_title_font_color", "black"),
+            tickmode="array",
+            ticks=config.get("x_ticks", "outside"),
+            tickwidth=config.get("x_tickwidth"),
+            rangemode=config.get("x_rangemode"),
+            range=config.get("x_range", (min(x_tickvals), None)),
+            tickvals=x_tickvals,
+            ticktext=x_ticktext,
+            tickcolor=config.get("axes_tickcolor"),
+            showline=True,
+            linewidth=config.get("axes_linewidth", 6),
+            linecolor=config.get("axes_linecolor", "black"),
+            tickfont=config.get("x_tickfont", dict(size=32)),
+            tickangle=config.get("tickangle", 0),
+            showgrid=config.get("x_showgrid", True),
+        ),
+        yaxis=dict(
+            title=config.get("y_title"),
+            title_font_size=config.get("y_title_font_size", 32),
+            title_standoff=config.get("y_title_standoff", 25),
+            title_font_color=config.get("y_title_font_color", "black"),
+            range=config.get("y_range"),
+            ticks=config.get("y_ticks", "outside"),
+            tickwidth=config.get("y_tickwidth", 6),
+            tickmode="array",
+            tickvals=config.get("y_tickvals"),
+            ticktext=config.get("y_ticktext"),
+            tickcolor=config.get("axes_tickcolor"),
+            showline=True,
+            linewidth=config.get("axes_linewidth", 6),
+            linecolor=config.get("axes_linecolor", "black"),
+            tickfont=config.get("y_tickfont", dict(size=32)),
+            showgrid=config.get("y_showgrid", True),
+            gridcolor=config.get("y_gridcolor", None),
+            zeroline=config.get("y_zeroline", None),
+            zerolinecolor=config.get("y_zerolinecolor", None),
+            zerolinewidth=config.get("y_zerolinewidth", None),
+        ),
+        title=config.get("title"),
+        title_font_size=config.get("title_font_size", 32),
+        title_font_color=config.get("title_font_color", "black"),
+        font_family=config.get("font_family", "verdana"),
+        font_color=config.get("font_color"),
+        # https://plotly.com/python/reference/layout/#layout-legend
+        legend=config.get("legend"),
+        showlegend=config.get("showlegend", True),
+        plot_bgcolor=config.get("bgcolor", "white"),
+        paper_bgcolor=config.get("bgcolor", "white"),
+    )
+    fig.update_traces(
+        marker=dict(
+            size=config.get("marker_size", 20), line=config.get("marker_line", None)
+        ),
+        line=dict(width=config.get("line_width", 4)),
+    )
+    if config.get("legend_name_mapping"):
+        # https://stackoverflow.com/a/64378982
+        fig.for_each_trace(
+            lambda t: t.update(name=config["legend_name_mapping"].get(t.name, t.name))
+        )
+
+    if config.get("save", False):
+        filename = (
+            "shifted_"
+            if config.get("shift_conditions") or config.get("shift_conditions_2")
+            else ""
+        )
+        filename += config_to_descriptive_string(config)
+        if config.get("filepostfix"):
+            filename += f"_{config['filepostfix']}"
+        filetype = config.get("filetype", "png")
+
+        align_str = "fa_start"
+        if config.get("align_timestamp"):
+            align_str = config["align_timestamp"]
+            if isinstance(align_str, dict):
+                align_str = list(align_str.values())[0]
+
+        by_what = "by_time"
+        normalize_str = ""
+        if config.get("normalize") is not None:
+            normalize_str = "normalized" if config["normalize"] else "unnormalized"
+        output_path = os.path.join(
+            config.get("study", ""),
+            config.get("script_name", by_what),
+            config["mode"],
+            align_str,
+            normalize_str,
+            f"{filename}.{filetype}",
+        )  # type: ignore
+        save_plot(config, fig, output_path)
+
+    if config.get("show", False):
+        fig.show(width=config["width"], height=config["height"])
+
+    return fig
+
+
+def plot_by_time_shifted_pre_post(config):
+    aggregator(
+        config,
+        load_func=func_load,
+        call_func=func_plot_by_time_pre_post,
         no_extra_columns=False,
     )
 

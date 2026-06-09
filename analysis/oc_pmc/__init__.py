@@ -68,6 +68,10 @@ RATINGS_LIGHTBULB = {
     "file": "19.csv",
 }
 
+# Filters for aggregator
+NOFILTER = ("filter", {})
+TIMEFILTER = ("filter", {"exclude": [("gte", "timestamp", 180000)]})
+PRE_POST_NOFILTER = ("position", {"post": NOFILTER, "pre": NOFILTER})
 
 logging.basicConfig(format=FORMAT)
 

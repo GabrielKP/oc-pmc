@@ -1,11 +1,6 @@
 from scipy.stats import f_oneway, kruskal, levene, normaltest
 
-from oc_pmc.load import (
-    load_per_participant_data,
-    load_questionnaire,
-    load_rated_wordchains,
-    load_wordchains,
-)
+from oc_pmc.load import load_per_participant_data
 
 
 def test_multiple(config: dict):

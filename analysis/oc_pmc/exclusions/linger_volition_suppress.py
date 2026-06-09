@@ -104,7 +104,7 @@ def func_exclude_carver_original_suppress(
 
     # 10. by suppression probe
     exclusions_suppress_probe = exclusion_suppress_probe(
-        config, to_exclude_df, to_compare_df, handle_typo=True
+        config, to_exclude_df, to_compare_df, colname_story="guess_suppres_2"
     )
     exclusions_suppress_probe.name = "suppress_probe"
 

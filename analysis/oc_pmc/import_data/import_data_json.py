@@ -16,6 +16,7 @@ from oc_pmc.import_data.utils import (
     get_comp_prop_carver,
     get_comp_prop_dark_bedroom,
     get_comp_prop_interference_story,
+    get_comp_prop_july,
     get_mean_sr_rt,
 )
 from oc_pmc.load import load_rated_words
@@ -35,14 +36,14 @@ def get_wcs_df(pID_wcs: pd.DataFrame) -> pd.DataFrame:
 
     wcs_ndarray = wordchains_to_ndarray(wcs_list, pad_val="")
     colnames = ["ID"] + [f"word {i}" for i in range(wcs_ndarray.shape[-1] - 1)]
-    wcs_df = pd.DataFrame(wcs_ndarray, columns=colnames)
+    wcs_df = pd.DataFrame(wcs_ndarray, columns=colnames)  # type: ignore
 
     wcs_df = wcs_df.copy()
 
     # add cue
     cue_df = pd.DataFrame(
         ["" for _ in range(wcs_df.shape[0])],
-        columns=["cue"],
+        columns=["cue"],  # type: ignore
         index=wcs_df.index,
     )
     wcs_df = cue_df.join(wcs_df)
@@ -126,10 +127,10 @@ def get_questionnaire_data_json(
     for phase, questions in q_keys.items():
         q_answers: List[pd.DataFrame] = list()
         for question, q_colname, num_or_str in questions:
-            answer_df = pID_trialdata[
+            answer_df: pd.DataFrame = pID_trialdata[
                 (pID_trialdata["question"] == question)
                 & (pID_trialdata["stage"] == phase)
-            ][["answer"]]
+            ][["answer"]]  # type: ignore
             if answer_df.empty:
                 print(
                     f"No entry for question; {question},"
@@ -157,31 +158,67 @@ def get_questionnaire_data_json(
         if phase == "questionnaire_transportation":
             # compute transportation score without item Q5
             # (to distinguish lingering & transportation)
-            pID_answers_no_Q5 = pID_answers.copy().drop(columns="tran_Q5")
+            pID_answers["tran_raw"] = (
+                pID_answers[
+                    [
+                        "tran_Q1",
+                        "tran_Q3",
+                        "tran_Q4",
+                        "tran_Q6",
+                        "tran_Q7",
+                        "tran_Q8",
+                        "tran_Q10",
+                        "tran_Q11",
+                        "tran_Q12",
+                        "tran_Q13",
+                    ]
+                ].sum(axis=1)
+                # Q2 and Q9 are reversed, need to reverse them
+            ) + (8 - pID_answers["tran_Q2"] + 8 - pID_answers["tran_Q9"])
+
             # compute transportation on all answers
             # (just to have it)
-            pID_answers_all = pID_answers.copy()
-            # compute the transportation score without Q3 and last two items
-            # (because of bug in suppress condition)
-            pID_answers_no_Q5_Q12_Q13 = pID_answers.copy().drop(
-                columns=["tran_Q5", "tran_Q12", "tran_Q13"]
-            )
+            pID_answers["tran_raw_all"] = (
+                pID_answers[
+                    [
+                        "tran_Q1",
+                        "tran_Q3",
+                        "tran_Q4",
+                        "tran_Q5",
+                        "tran_Q6",
+                        "tran_Q7",
+                        "tran_Q8",
+                        "tran_Q10",
+                        "tran_Q11",
+                        "tran_Q12",
+                        "tran_Q13",
+                    ]
+                ].sum(axis=1)
+                # Q2 and Q9 are reversed, need to reverse them
+            ) + (8 - pID_answers["tran_Q2"] + 8 - pID_answers["tran_Q9"])
 
-            # add raw score column to output df
-            pID_answers["tran_raw"] = pID_answers_no_Q5.sum(axis=1)
-            pID_answers["tran_raw_all"] = pID_answers_all.sum(axis=1)
-            pID_answers["tran_raw_10"] = pID_answers_no_Q5_Q12_Q13.sum(axis=1)
+            # compute the transportation score without Q5 and last two items
+            # (because of bug in suppress condition)
+            pID_answers["tran_raw_10"] = (
+                pID_answers[
+                    [
+                        "tran_Q1",
+                        "tran_Q3",
+                        "tran_Q4",
+                        "tran_Q6",
+                        "tran_Q7",
+                        "tran_Q8",
+                        "tran_Q10",
+                        "tran_Q11",
+                    ]
+                ].sum(axis=1)
+                # Q2 and Q9 are reversed, need to reverse them
+            ) + (8 - pID_answers["tran_Q2"] + 8 - pID_answers["tran_Q9"])
 
             # add proportion score to output df
-            pID_answers["tran_prop"] = pID_answers["tran_raw"] / (
-                pID_answers_no_Q5.shape[-1] * 7
-            )
-            pID_answers["tran_prop_all"] = pID_answers["tran_raw_all"] / (
-                pID_answers_all.shape[-1] * 7
-            )
-            pID_answers["tran_prop_10"] = pID_answers["tran_raw_10"] / (
-                pID_answers_no_Q5_Q12_Q13.shape[-1] * 7
-            )
+            pID_answers["tran_prop"] = pID_answers["tran_raw"] / (12 * 7)
+            pID_answers["tran_prop_all"] = pID_answers["tran_raw_all"] / (13 * 7)
+            pID_answers["tran_prop_10"] = pID_answers["tran_raw_10"] / (10 * 7)
 
         # same for interference transportation
         if phase == "questionnaire_transportation_interference":
@@ -218,6 +255,41 @@ def get_questionnaire_data_json(
             pID_answers["tran_interference_prop_10"] = pID_answers[
                 "tran_interference_raw_10"
             ] / (pID_answers_no_Q5_Q12_Q13.shape[-1] * 7)
+
+        if phase == "questionnaire_rii":
+            pID_answers["rii_character_raw"] = pID_answers[
+                ["rii_1", "rii_2", "rii_3", "rii_4"]
+            ].sum(axis=1)
+            pID_answers["rii_event_raw"] = pID_answers[
+                ["rii_5", "rii_6", "rii_7", "rii_8"]
+            ].sum(axis=1)
+            pID_answers["rii_universe_raw"] = pID_answers[
+                ["rii_9", "rii_10", "rii_11", "rii_12"]
+            ].sum(axis=1)
+            pID_answers["rii_backstory_raw"] = pID_answers[
+                ["rii_13", "rii_14", "rii_15", "rii_16"]
+            ].sum(axis=1)
+            pID_answers["rii_total_raw"] = pID_answers[
+                [
+                    "rii_character_raw",
+                    "rii_event_raw",
+                    "rii_universe_raw",
+                    "rii_backstory_raw",
+                ]
+            ].sum(axis=1)
+            pID_answers["rii_character_prop"] = (
+                pID_answers["rii_character_raw"] - 4
+            ) / (4 * 7)
+            pID_answers["rii_event_prop"] = (pID_answers["rii_event_raw"] - 4) / (4 * 7)
+            pID_answers["rii_universe_prop"] = (pID_answers["rii_universe_raw"] - 4) / (
+                4 * 7
+            )
+            pID_answers["rii_backstory_prop"] = (
+                pID_answers["rii_backstory_raw"] - 4
+            ) / (4 * 7)
+            pID_answers["rii_total_prop"] = (pID_answers["rii_total_raw"] - (4 * 4)) / (
+                4 * 4 * 7
+            )
 
         q_results_all.append(pID_answers)
 
@@ -428,7 +500,7 @@ def get_time_away(
         return pd.DataFrame(
             data=zero_data,
             index=index,
-            columns=colnames,
+            columns=colnames,  # type: ignore
         )
 
     # get all phases
@@ -514,28 +586,28 @@ def get_reaction_time(
 
     # replace nans
     # really can only happen if a participant did not submit a single word during FA
-    if pID_rt_means_pre_merged["word_time"].isna().any():
+    if pID_rt_means_pre_merged["word_time"].isna().any():  # type: ignore
         console.print(
             "Import: word_time; Pre participant means, replacing"
             f"{pID_rt_means_pre_merged['word_time'].isna().sum()} nans",
             style="red",
         )
         pID_rt_means_pre_merged["word_time"].fillna(180000, inplace=True)
-    if pID_rt_means_post_merged["word_time"].isna().any():
+    if pID_rt_means_post_merged["word_time"].isna().any():  # type: ignore
         console.print(
             "Import: word_time; Pre participant means, replacing"
             f"{pID_rt_means_post_merged['word_time'].isna().sum()} nans",
             style="red",
         )
         pID_rt_means_post_merged["word_time"].fillna(180000, inplace=True)
-    if pID_rt_max_pre_merged["word_time"].isna().any():
+    if pID_rt_max_pre_merged["word_time"].isna().any():  # type: ignore
         console.print(
             "Import: word_time; Pre participant means, replacing"
             f"{pID_rt_max_pre_merged['word_time'].isna().sum()} nans",
             style="red",
         )
         pID_rt_max_pre_merged["word_time"].fillna(180000, inplace=True)
-    if pID_rt_max_post_merged["word_time"].isna().any():
+    if pID_rt_max_post_merged["word_time"].isna().any():  # type: ignore
         console.print(
             "Import: word_time; Pre participant means, replacing"
             f"{pID_rt_max_post_merged['word_time'].isna().sum()} nans",
@@ -545,13 +617,15 @@ def get_reaction_time(
 
     # not the technical accurate mean, the phase with less words will
     # be overweighted.
-    pID_rt_means = (
+    pID_rt_means: pd.DataFrame = (
         pd.concat([pID_rt_means_pre_merged, pID_rt_means_post_merged])
         .groupby("participantID")
         .mean()
-    )
-    pID_rt_max_post = pID_rt_max_post_merged.groupby("participantID").max()
-    pID_rt_max = (
+    )  # type: ignore
+    pID_rt_max_post: pd.DataFrame = pID_rt_max_post_merged.groupby(
+        "participantID"
+    ).max()  # type: ignore
+    pID_rt_max: pd.DataFrame = (
         pd.concat(
             [
                 pID_rt_max_pre_merged,
@@ -560,7 +634,7 @@ def get_reaction_time(
         )
         .groupby("participantID")
         .max()
-    )
+    )  # type: ignore
     pID_rt_means.rename(columns={"word_time": "rt_mean"}, inplace=True)
     pID_rt_max.rename(columns={"word_time": "rt_max"}, inplace=True)
     pID_rt_max_post.rename(columns={"word_time": "rt_max_post"}, inplace=True)
@@ -603,7 +677,7 @@ def get_spr_wcg_break(
 
         times_spr_wcg.append(start_wcg - end_start_stage)
         pIDs.append(group_name)
-    pID_spr_wcg_break = pd.DataFrame(data=times_spr_wcg, index=pIDs, columns=["time"])
+    pID_spr_wcg_break = pd.DataFrame(data=times_spr_wcg, index=pIDs, columns=["time"])  # type: ignore
     pID_spr_wcg_break.index.name = "participantID"
     pID_spr_wcg_break.rename(columns={"time": "spr-wcg-break"}, inplace=True)
 
@@ -771,9 +845,16 @@ def get_missing_sentence_pIDs(
 ) -> list[str]:
     """Returns participants who were not shown all sentences for some reason."""
 
-    n_sentences = 269
-    if condition == "interference_end_pause":
-        n_sentences = 270
+    if story == "carver_original":
+        n_sentences = 269
+        if condition == "interference_end_pause":
+            n_sentences = 270
+    elif story == "july_original":
+        n_sentences = 266
+    elif story == "dark_bedroom":
+        n_sentences = 17
+    else:
+        raise ValueError(f"Unknown story: {story}")
 
     missing_sentences_pIDs = list()
     if story == "carver_original":
@@ -859,7 +940,7 @@ def print_stage_times(pID_stage_times: pd.DataFrame):
         )
 
 
-def import_data_json(
+def import_data_dfs_from_json(
     study_name_or_data_dir: str,
     q_keys: Dict[str, List[Tuple[str, str, str]]],
     main_experiment_stages: List[str],
@@ -867,35 +948,17 @@ def import_data_json(
     filter_condition: Optional[Union[str, Tuple[str, str]]] = None,
     ratings: Optional[Dict[str, str]] = None,
     interference_answers: Optional[Union[List[Tuple[str, int, str]], str]] = None,
-):
-    """Imports data in the json format (e.g. psyserver) into ldata.
-
-    Parameters
-    ----------
-    study_name_or_data_dir: str
-        Name for study or directory for study. If only name is given, will attempt to
-        locate study name in directory given by STUDYDATA_DIR in the .env
-    q_keys: Dict[str, List[Tuple[str, str, str]]]
-        Dictionary with stagenames and respective questionnaire keys,
-        their name in the output table and their type (num or str).
-    main_experiment_stages: List[str]
-        List of stages over which time_away and focusevenets are computed.
-    data_dir: str, default=None
-        Root data dir to export files to. Also set in .env
-    filter_condition: str, default=None
-        Condition name which to filter for. For example, a data_dir may
-        contain multiple experiments ["intact", "suppress"], then you can filter
-        for "suppress".
-        If True,  rather than the standard
-        csv data loader (psiturk format).
-    ratings: Dict, default=None
-        Dict specifying, approach, model, story and file of ratings.
-        e.g. dict(
-            approach="human", model="moment",story="carver_original",file="all.csv"
-        ),
-    interference_answers: List[Tuple[str, int, str]], default=None
-        List with Tuples specifying (stage_name, question_index, correct_answer)
-    """
+    story_override: Optional[str] = None,
+) -> tuple[
+    str,
+    str,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+]:
     if data_dir is None:
         data_dir = DATA_DIR
 
@@ -913,9 +976,11 @@ def import_data_json(
         study_data_dir, filter_condition
     )
 
+    if story_override is not None:
+        story = story_override
+
     if trialdata.empty:
-        print("No participant data. Aborting.")
-        return False
+        raise ValueError("No participant data. Aborting.")
 
     # Sanity checks
     missing_sentence_pIDs = get_missing_sentence_pIDs(trialdata, story, condition)
@@ -928,8 +993,8 @@ def import_data_json(
     # Map ids for anonymization
     pIDs = trialdata["participantID"].unique().tolist()
     mapped_pIDs, mapping = mapIds(study_data_dir=study_data_dir, ids=pIDs)
-    trialdata["participantID"] = trialdata["participantID"].map(mapping)
-    eventdata["participantID"] = eventdata["participantID"].map(mapping)
+    trialdata["participantID"] = trialdata["participantID"].map(mapping)  # type: ignore
+    eventdata["participantID"] = eventdata["participantID"].map(mapping)  # type: ignore
 
     # convert
     pID_trialdata = trialdata.set_index("participantID")
@@ -957,8 +1022,12 @@ def import_data_json(
     # B) comprehension data
     if story == "dark_bedroom":
         pID_comprehension = get_comp_prop_dark_bedroom(pID_trialdata, detailed=True)
-    else:
+    elif story == "july_original":
+        pID_comprehension = get_comp_prop_july(pID_trialdata, detailed=True)
+    elif story == "carver_original":
         pID_comprehension = get_comp_prop_carver(pID_trialdata, detailed=True)
+    else:
+        raise ValueError(f"Error comprehension score: Unknown {story=}")
 
     # C) Demographics/Experience/Transportation/Open questionnaires
     pID_questionnaire = get_questionnaire_data_json(pID_trialdata, q_keys=q_keys)
@@ -1124,7 +1193,80 @@ def import_data_json(
     # Print time info on pre-excluded data
     print_stage_times(pID_stage_times)
 
-    # Now save files
+    # pID_summary.sort_values(by="participantID", inplace=True)
+    return (
+        story,
+        condition,
+        wcs_df_pre,
+        wcs_df_post,
+        pID_summary,
+        pID_timing_pre_df,
+        pID_timing_post_df,
+        pID_sentence_time_spr,
+    )
+
+
+def import_data_json(
+    study_name_or_data_dir: str,
+    q_keys: Dict[str, List[Tuple[str, str, str]]],
+    main_experiment_stages: List[str],
+    data_dir: Optional[str] = None,
+    filter_condition: Optional[Union[str, Tuple[str, str]]] = None,
+    ratings: Optional[Dict[str, str]] = None,
+    interference_answers: Optional[Union[List[Tuple[str, int, str]], str]] = None,
+):
+    """Imports data in the json format (e.g. psyserver) into ldata.
+
+    Parameters
+    ----------
+    study_name_or_data_dir: str
+        Name for study or directory for study. If only name is given, will attempt to
+        locate study name in directory given by STUDYDATA_DIR in the .env
+    q_keys: Dict[str, List[Tuple[str, str, str]]]
+        Dictionary with stagenames and respective questionnaire keys,
+        their name in the output table and their type (num or str).
+    main_experiment_stages: List[str]
+        List of stages over which time_away and focusevenets are computed.
+    data_dir: str, default=None
+        Root data dir to export files to. Also set in .env
+    filter_condition: str, default=None
+        Condition name which to filter for. For example, a data_dir may
+        contain multiple experiments ["intact", "suppress"], then you can filter
+        for "suppress".
+        If True,  rather than the standard
+        csv data loader (psiturk format).
+    ratings: Dict, default=None
+        Dict specifying, approach, model, story and file of ratings.
+        e.g. dict(
+            approach="human", model="moment",story="carver_original",file="all.csv"
+        ),
+    interference_answers: List[Tuple[str, int, str]], default=None
+        List with Tuples specifying (stage_name, question_index, correct_answer)
+    """
+    if data_dir is None:
+        data_dir = DATA_DIR
+
+    # load data dfs
+    (
+        story,
+        condition,
+        wcs_df_pre,
+        wcs_df_post,
+        pID_summary,
+        pID_timing_pre_df,
+        pID_timing_post_df,
+        pID_sentence_time_spr,
+    ) = import_data_dfs_from_json(
+        study_name_or_data_dir=study_name_or_data_dir,
+        q_keys=q_keys,
+        main_experiment_stages=main_experiment_stages,
+        data_dir=data_dir,
+        filter_condition=filter_condition,
+        ratings=ratings,
+        interference_answers=interference_answers,
+    )
+
+    # Save files
     # A) word chains pre/post
     wordchain_dir = os.path.join(data_dir, "wordchains", story, condition)
     wordchain_post_path = os.path.join(wordchain_dir, "post.csv")

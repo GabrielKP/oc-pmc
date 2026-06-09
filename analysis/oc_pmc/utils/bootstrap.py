@@ -65,7 +65,9 @@ def resample_2d(
     return sample[vals_chosen, np.arange(sample.shape[1])]  # type: ignore
 
 
-def bootstrap_2d(config: Dict, sample: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def bootstrap_2d(
+    config: Dict, sample: np.ndarray, print_non_nans: bool = True
+) -> Tuple[np.ndarray, np.ndarray]:
     rng = np.random.default_rng()
 
     # sample.shape = (n_wordchains, n_positions)
@@ -74,7 +76,8 @@ def bootstrap_2d(config: Dict, sample: np.ndarray) -> Tuple[np.ndarray, np.ndarr
 
     nums_per_col = np.sum(~np.isnan(sample), axis=0)
 
-    print(f"nans in each bin: {nums_per_col}")
+    if print_non_nans:
+        print(f"non-nans in each bin: {nums_per_col}")
 
     sorted_sample = sample[np.argsort(sample, axis=0), np.arange(sample.shape[1])]
 
@@ -131,8 +134,8 @@ def get_confidence_intervals(
 
     lowers = np.nanquantile(estimates_df, q=quant_lower, axis=1)
     uppers = np.nanquantile(estimates_df, q=quant_higher, axis=1)
-    lowers_df = pd.DataFrame(lowers, index=estimates_df.index, columns=["ci_lower"])
-    uppers_df = pd.DataFrame(uppers, index=estimates_df.index, columns=["ci_upper"])
+    lowers_df = pd.DataFrame(lowers, index=estimates_df.index, columns=["ci_lower"])  # type: ignore
+    uppers_df = pd.DataFrame(uppers, index=estimates_df.index, columns=["ci_upper"])  # type: ignore
     return lowers_df, uppers_df
 
 

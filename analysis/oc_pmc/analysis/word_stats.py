@@ -26,7 +26,7 @@ def func_compute_word_stats(config: dict, data_df: pd.DataFrame):
         base = STUDYPLOTS_DIR
     else:
         base = os.path.join(OUTPUTS_DIR, PLOTS_DIR)
-    study = config.get("STUDY", "")
+    study = config.get("study", "")
     dirs = [base, study, "word_stats"]
     for path_key in {"story", "condition"}.difference(
         set(config.get("aggregate_over", []))

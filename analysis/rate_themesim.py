@@ -1,27 +1,28 @@
+import glob
 import logging
 import os
 import pickle
-from typing import Any, Dict, List, Tuple, Union
+from itertools import chain
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
-from oc_pmc import OUTPUTS_DIR, RATEDWORDS_DIR, get_logger
+import torch
+from oc_pmc import OUTPUTS_DIR, RATEDWORDS_DIR, WORDCHAINS_DIR, get_logger
 from oc_pmc.convert.exp_to_csv import loaded_ratings_to_df
 from oc_pmc.load import load_word_list_txt, load_words
 from oc_pmc.model_objects.model_glove import Glove
 from oc_pmc.model_objects.model_object import ModelObject
 from oc_pmc.utils import check_make_dirs
+from oc_pmc.utils.rate_wordchains import rate_wordchains
 from tqdm import tqdm
 
+LOCAL_OUTPUTS_DIR = "outputs"
 EXP_DIR = "exp"
 APPROACH = "themesim"
 PERMUTATION_SEED = 999
 
 
 log = get_logger(__name__)
-
-
-def cos_similarity(x1: np.ndarray, x2: np.ndarray) -> float:
-    return np.dot(x1, x2) / (np.linalg.norm(x1, axis=1) * np.linalg.norm(x2))
 
 
 class Experiment(object):
@@ -35,6 +36,7 @@ class Experiment(object):
         model_object: ModelObject,
     ):
         self.model_object = model_object
+        self.cos_sim = torch.nn.CosineSimilarity(dim=1)
 
     def _compute_similarity(
         self,
@@ -47,16 +49,18 @@ class Experiment(object):
         if word_embedding is None:
             return None
 
-        # compute similarity score
-        similarities = cos_similarity(self.theme_embeddings, word_embedding)
+        word_embedding = torch.from_numpy(word_embedding)
 
-        return np.max(similarities).item()
+        # compute similarity score
+        similarities = self.cos_sim(self.theme_embeddings, word_embedding)
+
+        return torch.max(similarities).item()
 
     def get_theme_embeddings(
         self,
         config: Dict[str, Any],
         theme_words: List[str],
-    ) -> np.ndarray:
+    ) -> torch.Tensor:
         theme_embeddings: List[np.ndarray] = list()
         for theme_word in theme_words:
             theme_embedding = self.model_object.embedding(config, theme_word)
@@ -64,7 +68,7 @@ class Experiment(object):
                 raise RuntimeError(f"Theme word not in embedding file: {theme_word}")
             theme_embeddings.append(theme_embedding)
 
-        return np.stack(theme_embeddings)
+        return torch.from_numpy(np.stack(theme_embeddings))
 
     def run(
         self,
@@ -73,7 +77,7 @@ class Experiment(object):
         """Runs experiment."""
 
         # ---- get words to rate
-        words_to_rate = load_words(dict(), corrections=config["corrections"])
+        words_to_rate = load_words(corrections=config["corrections"])
 
         # ---- theme words
         theme_words = load_word_list_txt(config["path_theme_words"])
@@ -111,7 +115,7 @@ def get_output_paths(config: Dict) -> Tuple[str, str]:
         else "10"
     )
     output_path = os.path.join(
-        OUTPUTS_DIR,
+        LOCAL_OUTPUTS_DIR,
         EXP_DIR,
         APPROACH,
         normalized_model_name,

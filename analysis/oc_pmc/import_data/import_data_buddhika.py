@@ -30,7 +30,7 @@ log = get_logger(__name__)
 def get_stage_timestamps(pID_trialdata: pd.DataFrame, stage_keys) -> pd.DataFrame:
     # phase == stage
     phases = pID_trialdata["phase"].unique()
-    phases = phases[phases != "INSTRUCTIONS"]
+    phases = phases[phases != "INSTRUCTIONS"]  # type: ignore
     phase_timestamps_long_ls: List[pd.DataFrame] = list()
     mentioned = set()
     for pID, pID_df in pID_trialdata.groupby("participantID"):
@@ -269,8 +269,8 @@ def import_data_buddhika(
             group_df["prev_word_time"] = group_df["prev_word_time"].astype(int)
 
             def key_onset_times_relative(row: pd.Series) -> List[int]:
-                word_key_onsets_ls: List[int] = row["word_key_onsets"]
-                prev_word_time: int = row["prev_word_time"]
+                word_key_onsets_ls: List[int] = row["word_key_onsets"]  # type: ignore
+                prev_word_time: int = row["prev_word_time"]  # type: ignore
                 if len(word_key_onsets_ls) == 0:
                     return []
                 word_key_onsets: np.ndarray = np.array(word_key_onsets_ls)  # type: ignore

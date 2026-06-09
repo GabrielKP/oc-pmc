@@ -18,9 +18,9 @@ def get_comp_prop_carver_buddhika(
         # check for correctness
         answer_df[question] = answer_df["Response"] == correct_answer
         # remove duplicate indices
-        answer_df = answer_df[~answer_df.index.duplicated(keep="last")]
+        answer_df = answer_df[~answer_df.index.duplicated(keep="last")]  # type: ignore
 
-        answers_dct[kind].append(answer_df[[question]])
+        answers_dct[kind].append(answer_df[[question]])  # type: ignore
 
     pID_catch = answers_dct["catch"][0].join(answers_dct["catch"][1:])  # type: ignore
     pID_general = answers_dct["general"][0].join(answers_dct["general"][1:])  # type: ignore
@@ -197,7 +197,7 @@ def get_reaction_time_buddhika(
             - sorted_times.loc[:, "prev_word_submit_time"]
         )
 
-        return sorted_times["relative_word_submit_time"]
+        return sorted_times["relative_word_submit_time"]  # type: ignore
 
     # pre
     pID_word_times_pre = pID_trialdata.loc[
@@ -255,7 +255,9 @@ def get_spr_wcg_break_buddhika(pID_trialdata: pd.DataFrame) -> pd.DataFrame:
         times_spr_wcg.append(start_wcg - end_spr)
         pIDs.append(group_name)
     pID_spr_wcg_break = pd.DataFrame(
-        data=times_spr_wcg, index=pIDs, columns=["spr-wcg-break"]
+        data=times_spr_wcg,
+        index=pIDs,  # type: ignore
+        columns=["spr-wcg-break"],  # type: ignore
     )
     pID_spr_wcg_break.index.name = "participantID"
 
@@ -318,9 +320,9 @@ def get_questionnaire_data_buddhika(
     for phase, questions in q_keys.items():
         q_answers: List[pd.DataFrame] = list()
         for question, q_colname, num_or_str in questions:
-            answer_df = pID_questiondata[(pID_questiondata["Question"] == question)][
-                ["Response"]
-            ]
+            answer_df: pd.DataFrame = pID_questiondata[
+                (pID_questiondata["Question"] == question)
+            ][["Response"]]  # type: ignore
             if answer_df.empty:
                 print(
                     f"No entry for question; {question}, q_colname: {q_colname};"
@@ -351,31 +353,67 @@ def get_questionnaire_data_buddhika(
         if phase == "transportation":
             # compute transportation score without item Q5
             # (to distinguish lingering & transportation)
-            pID_answers_no_Q5 = pID_answers.copy().drop(columns="tran_Q5")
+            pID_answers["tran_raw"] = (
+                pID_answers[
+                    [
+                        "tran_Q1",
+                        "tran_Q3",
+                        "tran_Q4",
+                        "tran_Q6",
+                        "tran_Q7",
+                        "tran_Q8",
+                        "tran_Q10",
+                        "tran_Q11",
+                        "tran_Q12",
+                        "tran_Q13",
+                    ]
+                ].sum(axis=1)
+                # Q2 and Q9 are reversed, need to reverse them
+            ) + (8 - pID_answers["tran_Q2"] + 8 - pID_answers["tran_Q9"])
+
             # compute transportation on all answers
             # (just to have it)
-            pID_answers_all = pID_answers.copy()
+            pID_answers["tran_raw_all"] = (
+                pID_answers[
+                    [
+                        "tran_Q1",
+                        "tran_Q3",
+                        "tran_Q4",
+                        "tran_Q5",
+                        "tran_Q6",
+                        "tran_Q7",
+                        "tran_Q8",
+                        "tran_Q10",
+                        "tran_Q11",
+                        "tran_Q12",
+                        "tran_Q13",
+                    ]
+                ].sum(axis=1)
+                # Q2 and Q9 are reversed, need to reverse them
+            ) + (8 - pID_answers["tran_Q2"] + 8 - pID_answers["tran_Q9"])
+
             # compute the transportation score without Q5 and last two items
             # (because of bug in suppress condition)
-            pID_answers_no_Q5_Q12_Q13 = pID_answers.copy().drop(
-                columns=["tran_Q5", "tran_Q12", "tran_Q13"]
-            )
-
-            # add raw score column to output df
-            pID_answers["tran_raw"] = pID_answers_no_Q5.sum(axis=1)
-            pID_answers["tran_raw_all"] = pID_answers_all.sum(axis=1)
-            pID_answers["tran_raw_10"] = pID_answers_no_Q5_Q12_Q13.sum(axis=1)
+            pID_answers["tran_raw_10"] = (
+                pID_answers[
+                    [
+                        "tran_Q1",
+                        "tran_Q3",
+                        "tran_Q4",
+                        "tran_Q6",
+                        "tran_Q7",
+                        "tran_Q8",
+                        "tran_Q10",
+                        "tran_Q11",
+                    ]
+                ].sum(axis=1)
+                # Q2 and Q9 are reversed, need to reverse them
+            ) + (8 - pID_answers["tran_Q2"] + 8 - pID_answers["tran_Q9"])
 
             # add proportion score to output df
-            pID_answers["tran_prop"] = pID_answers["tran_raw"] / (
-                pID_answers_no_Q5.shape[-1] * 7
-            )
-            pID_answers["tran_prop_all"] = pID_answers["tran_raw_all"] / (
-                pID_answers_all.shape[-1] * 7
-            )
-            pID_answers["tran_prop_10"] = pID_answers["tran_raw_10"] / (
-                pID_answers_no_Q5_Q12_Q13.shape[-1] * 7
-            )
+            pID_answers["tran_prop"] = pID_answers["tran_raw"] / (12 * 7)
+            pID_answers["tran_prop_all"] = pID_answers["tran_raw_all"] / (13 * 7)
+            pID_answers["tran_prop_10"] = pID_answers["tran_raw_10"] / (10 * 7)
 
         q_results_all.append(pID_answers)
 
