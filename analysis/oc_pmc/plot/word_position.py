@@ -1029,3 +1029,30 @@ def plot_match_score_across_conditions(config: dict):
             f"scatter_{''.join(name_start_chars).upper()}{suffix}.{filetype}",
         )
         save_plot(config, fig, output_path, verbose=True)
+
+
+if __name__ == "__main__":
+    WORD_POSITION_EXACT_MATCH = {
+        "story": "carver_original",
+        "mode": "exact_match",
+        "model_name": "all_matches",
+    }
+
+    RATINGS_CARVER = {
+        "approach": "human",
+        "model": "moment",
+        "story": "carver_original",
+        "file": "all.csv",
+    }
+
+    config = {
+        "load_spec": (
+            "story",
+            {"carver_original": ("condition", {"button_press": ("filter", {})})},
+        ),
+        "aggregate_on": "condition",
+        "word_position": WORD_POSITION_EXACT_MATCH,
+        "ratings": RATINGS_CARVER,
+        "save": True,
+    }
+    plot_count_matching_sections(config=config)
