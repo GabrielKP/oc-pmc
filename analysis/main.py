@@ -6326,7 +6326,7 @@ def suppl_choice_baseline_fig_3_and_distribution_first_bin_aligned():
             "scale": 2,
         },
         fig,
-        "distribution/bp_30s_60s_bin_msr_n_words.png",
+        f"{STUDY_SUPPL}/distribution/bp_30s_60s_bin_msr_n_words.png",
     )
 
     # Looking at the plot you can see:

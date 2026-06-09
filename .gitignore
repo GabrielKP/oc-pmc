@@ -6,3 +6,6 @@ server.log
 plots
 .cache
 .DS_Store
+conditions/psiturk-based/linger-volition/data*
+conditions/psiturk-based/story-relatedness/data*
+.env
