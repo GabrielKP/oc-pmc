@@ -11443,11 +11443,11 @@ def suppl_linger_multi_day_stats():
     # to check suppress v neutralcue, suppress_button_press vs button_press
     test_two(
         {
-            "name1": "Suppress No Button Press",
-            "name2": "Baseline",
+            "name1": "Baseline",
+            "name2": "Suppress No Button Press",
             "story": "carver_original",
-            "config1": {"condition": "suppress"},
-            "config2": {"condition": "neutralcue2"},
+            "config1": {"condition": "neutralcue2"},
+            "config2": {"condition": "suppress"},
             "measure": "linger_rating",
             "test_type": "mwu",
             "threshold": P_DISPLAY_THRESHOLD,
@@ -11457,11 +11457,11 @@ def suppl_linger_multi_day_stats():
     # to check suppress v neutralcue, suppress_button_press vs button_press
     test_two(
         {
-            "name1": "Suppress",
-            "name2": "Intact",
+            "name1": "Intact",
+            "name2": "Suppress",
             "story": "carver_original",
-            "config1": {"condition": "button_press_suppress"},
-            "config2": {"condition": "button_press"},
+            "config1": {"condition": "button_press"},
+            "config2": {"condition": "button_press_suppress"},
             "measure": "linger_rating",
             "test_type": "mwu",
             "threshold": P_DISPLAY_THRESHOLD,
