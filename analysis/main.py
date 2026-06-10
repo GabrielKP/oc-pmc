@@ -10958,8 +10958,8 @@ def suppl_linger_multi_day_plots():
         "Day 2": "#FFAE00",
     }
     multi_day_july_carver_color_map = {
-        "Day 1": "#FFAE00",
-        "Day 2": "#C701FF",
+        "Day 1": "#C701FF",
+        "Day 2": "#FFAE00",
     }
     multi_day_category_orders = {
         "condition": ["Day 1", "Day 2"],
