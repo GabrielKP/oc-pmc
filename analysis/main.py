@@ -9764,7 +9764,7 @@ def suppl_prereg_tom():
                     ("gte", "timestamp", 150000),
                 ],
             },
-            "condition": "interference_pause",
+            "condition": "interference_tom",
             "story": "carver_original",
             "ratings": RATINGS_CARVER,
             "measure": "story_relatedness",
