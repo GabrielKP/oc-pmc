@@ -5041,7 +5041,18 @@ def suppl_methods_stats_words_rated():
 
     def print_n_words(config: dict, data_df: pd.DataFrame):
         n_words_produced = len(data_df["word_text"])
-        print(f"all | n words: {n_words_produced}")
+        no_corr_str = "" if config.get("corrections", True) else " | no corrections"
+        print(f"all | n words: {n_words_produced}{no_corr_str}")
+
+    aggregator(
+        config={
+            "load_spec": ("all", {"all": ("story", ALL_STORIES_CONDITIONS_DCT)}),
+            "aggregate_on": "story",
+            "corrections": False,
+        },
+        load_func=func_load_words,
+        call_func=print_n_words,
+    )
 
     aggregator(
         config={
@@ -5057,13 +5068,30 @@ def suppl_methods_stats_words_rated():
 
     def print_n_unique_words(config: dict, data_df: pd.DataFrame):
         n_words_produced = len(data_df["word_text"].unique())
-        print(f"all | n unique words: {n_words_produced}")
+        no_corr_str = "" if config.get("corrections", True) else " | no corrections"
+        print(f"all | n unique words: {n_words_produced}{no_corr_str}")
         n_rated_words = data_df["story_relatedness"].notna().sum()
-        print(f"all | n rated words: {n_rated_words}")
+        print(f"all | n rated words: {n_rated_words}{no_corr_str}")
         n_unique_rated_words = (
             data_df.drop_duplicates("word_text")["story_relatedness"].notna().sum()
         )
-        print(f"all | n unique rated words: {n_unique_rated_words}")
+        print(f"all | n unique rated words: {n_unique_rated_words}{no_corr_str}")
+
+        # this number differs from the rating csv file
+        # the number in the paper is taken from the rating.csv file, because that is
+        # directly derived from the rating experiment.
+
+    aggregator(
+        config={
+            "load_spec": ("all", {"all": ("story", ALL_STORIES_CONDITIONS_DCT)}),
+            "aggregate_on": "all",
+            "ratings": RATINGS_CARVER,
+            "corrections": False,
+            "column": "story_relatedness",
+        },
+        load_func=func_load_rated_words,
+        call_func=print_n_unique_words,
+    )
 
     aggregator(
         config={
