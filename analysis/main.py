@@ -9286,7 +9286,7 @@ def suppl_prereg_volition():
             "story": "carver_original",
             "condition": "button_press",
             "measure": "thought_entries",
-            "test_type": "mwu",
+            "test_type": "wilcoxon",
             "threshold": P_DISPLAY_THRESHOLD,
         }
     )
