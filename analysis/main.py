@@ -7575,20 +7575,18 @@ def suppl_plots_stats_lightbulb():
         }
     )
 
-    test_difference_bin_means(
+    test_two(
         {
             "console_comment": ": TOWARDS LIGHTBULB",
             "name1": "Baseline post",
             "name2": "Baseline pre",
             "config1": {"position": "post"},
             "config2": {"position": "pre"},
-            "condition": "neutralcue2",
             "story": "carver_original",
+            "condition": "neutralcue2",
             "ratings": RATINGS_LIGHTBULB,
             "measure": "story_relatedness",
-            "alternative": "two-sided",
-            "step": 30000,
-            "n_bootstrap": 5000,
+            "test_type": "wilcoxon",  # consistency
             "threshold": P_DISPLAY_THRESHOLD,
         }
     )
@@ -7625,7 +7623,7 @@ def suppl_plots_stats_lightbulb():
         }
     )
 
-    test_difference_bin_means(
+    test_two(
         {
             "console_comment": ": TOWARDS ORIGINAL STORY",
             "name1": "New Story Alone post",
@@ -7636,10 +7634,7 @@ def suppl_plots_stats_lightbulb():
             "story": "dark_bedroom",
             "ratings": RATINGS_CARVER,
             "measure": "story_relatedness",
-            # test config
-            "alternative": "two-sided",
-            "step": 30000,
-            "n_bootstrap": 5000,
+            "test_type": "wilcoxon",  # consistency
             "threshold": P_DISPLAY_THRESHOLD,
         }
     )
