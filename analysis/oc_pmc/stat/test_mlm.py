@@ -695,12 +695,12 @@ def test_mlm(config: dict):
         else:
             interaction_p_str = f"p = {str(round(interaction_pvalue, 2))[1:]}"
 
-    interaction_coef_str = cut_small_value(interaction_coef)
+    interaction_coef_str = cut_small_value(round(interaction_coef, 3))
 
     print(
         "\nInteraction:"
         f" ($\\beta = {interaction_coef_str},"
-        f" z = {interaction_z:.2f},"
+        f" z = {round(interaction_z, 3):.3f},"
         f" {interaction_p_str}$)"
     )
 
