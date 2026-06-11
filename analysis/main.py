@@ -1661,6 +1661,9 @@ def plots_fig_2_results2():
         "both": "intentional-mixed",
         "neither": "other",
         "dontknow": "other",
+        np.nan: "other",  # a few participants do not have an answer
+        # (when participants answered 1 for lingering, they did not
+        #  get the follow-up questions.)
     }
 
     # 0. Volition distribution
