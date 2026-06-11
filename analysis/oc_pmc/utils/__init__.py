@@ -195,7 +195,8 @@ def save_plot(
         base = os.path.join(OUTPUTS_DIR, PLOTS_DIR)
     output_path = os.path.join(base, path)
     check_make_dirs(output_path, verbose=False)
-    fig.update_layout(margin=config.get("margin"))
+    if "margin" in config:
+        fig.update_layout(margin=config["margin"])
     fig.write_image(
         file=output_path,
         width=config.get("width"),
