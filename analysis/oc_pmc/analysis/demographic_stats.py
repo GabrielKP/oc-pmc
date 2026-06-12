@@ -16,8 +16,9 @@ def func_demographic_stats(config: dict, data_df: pd.DataFrame):
     n_participants_finished = len(load_questionnaire({**config, "filter": False}))
 
     if config.get("just_exclusions"):
+        n_excluded = n_participants_finished - n_participants
         print(f"{condition_name} condition: {n_participants_finished - n_participants}")
-        return
+        return (n_excluded, n_participants_finished)
 
     # gender
     if config["condition"] in ["multi_day_carver_july", "multi_day_july_carver"]:
@@ -240,7 +241,7 @@ def func_demographic_stats(config: dict, data_df: pd.DataFrame):
 
 
 def demographic_stats(config: dict):
-    aggregator(
+    return aggregator(
         config,
         load_func=load_questionnaire,
         call_func=func_demographic_stats,

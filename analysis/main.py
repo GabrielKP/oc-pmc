@@ -12384,14 +12384,66 @@ def submission_demographic_exclusion_stats():
         }
     )
 
+    console.print(
+        "\n > Number of participants declined content warning", style="yellow"
+    )
+    # 3 (first submission)
+    # Multi Day study:
+    # 2 linger-multi-day-1-0.2
+    #   (note in day-1-0.2 two accidently declided the warning, but notified the
+    #    reasearcher and requested to participate.)
+    # 1 linger-multi-day-1-0.5
+    # 1 linger-multi-day-1-0.6
+    # 1 linger-multi-day-1-0.7
+    # 2 linger-multi-day-1-0.8
+    n_declined = 3 + 2 + 2 + 1 + 1 + 1 + 2
+
+    all_stories_conditions = [
+        ("carver_original", "button_press"),
+        ("carver_original", "word_scrambled"),
+        ("carver_original", "button_press_suppress"),
+        ("carver_original", "neutralcue2"),
+        ("carver_original", "suppress"),
+        ("carver_original", "interference_situation"),
+        ("carver_original", "interference_tom"),
+        ("carver_original", "interference_story_spr"),
+        ("carver_original", "interference_geometry"),
+        ("carver_original", "interference_story_spr_end_continued"),
+        ("carver_original", "interference_story_spr_end_separated"),
+        ("carver_original", "interference_story_spr_end_delayed_continued"),
+        ("carver_original", "interference_pause"),
+        ("carver_original", "interference_end_pause"),
+        ("dark_bedroom", "neutralcue"),
+        ("carver_original", "multi_day_carver_july"),
+        ("carver_original", "multi_day_july_carver"),
+    ]
+
+    n_participants = 0
+    for story, condition in all_stories_conditions:
+        data_df = load_questionnaire({"story": story, "condition": condition})
+        n_participants += len(data_df.index.unique())
+
+    percent = n_declined / n_participants
+    console.print("\n > Number of participants declined content warning", style="blue")
+    print(f"N: {n_declined} - {percent:.4%}")
+
     console.print("\nExclusions", style="blue")
-    demographic_stats(
+    demographic_stats_results = demographic_stats(
         {
             "load_spec": ("story", ALL_STORIES_CONDITIONS_DCT_POST),
             "aggregate_on": "position",
             "name_mapping": NAME_MAPPING,
             "just_exclusions": True,
         }
+    )
+    n_excluded = 0
+    n_total = 0
+    for _, (n_excluded_this, n_experiment) in demographic_stats_results:
+        n_excluded += n_excluded_this
+        n_total += n_experiment
+    print(
+        f"(excluded participants) {n_excluded}"
+        f" (total participants: {n_total}) - {n_excluded / n_total:.4%}"
     )
 
 
@@ -12690,10 +12742,10 @@ def main():
     suppl_prereg_linger_multi_day()
 
     # Explorations & information not included in manuscript or supplement.
-    suppl_choice_baseline_fig_3_and_distribution_first_bin_aligned()
-    suppl_info_story_end_separated_continued()
-    suppl_info_effect_size_last_30s()
-    suppl_plot_correlation_sr_st()
+    # suppl_choice_baseline_fig_3_and_distribution_first_bin_aligned()
+    # suppl_info_story_end_separated_continued()
+    # suppl_info_effect_size_last_30s()
+    # suppl_plot_correlation_sr_st()
 
     console.print("\nDone", style="green bold")
 
