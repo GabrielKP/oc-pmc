@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import plotly.io as pio
-from oc_pmc import DATA_DIR, RATEDWORDS_DIR, console
+from oc_pmc import DATA_DIR, RATEDWORDS_DIR, STUDYDATA_DIR, console
 from oc_pmc.analysis.demographic_stats import demographic_stats
 from oc_pmc.analysis.krippendorf_alpha import krippendorf_alpha
 from oc_pmc.analysis.word_position import compute_rank_spearman_correlation
@@ -17,6 +17,7 @@ from oc_pmc.load import (
     load_per_participant_data,
     load_questionnaire,
     load_rated_wordchains,
+    load_screen_recording_exclusions,
     load_story_sentences_grouped,
     load_word_position,
     load_wordchains,
@@ -12445,6 +12446,67 @@ def submission_demographic_exclusion_stats():
         f"(excluded participants) {n_excluded}"
         f" (total participants: {n_total}) - {n_excluded / n_total:.4%}"
     )
+
+    console.print("\n Non participation", style="blue")
+    prolific_participation_path = Path(STUDYDATA_DIR) / "prolific_participation.csv"
+    pp_df = pd.read_csv(prolific_participation_path)
+    # double check
+    assert all(
+        pp_df["total"]
+        == (
+            pp_df["approved"]
+            + pp_df["rejected"]
+            + pp_df["returned"]
+            + pp_df["timed-out"]
+        )
+    )
+    n_total = pp_df["total"].sum()
+    n_approved = pp_df["approved"].sum()
+    n_rejected = pp_df["rejected"].sum()
+    n_returned = pp_df["returned"].sum()
+    n_timed_out = pp_df["timed-out"].sum()
+    prop_approved = n_approved / n_total
+    prop_rejected = n_rejected / n_total
+    prop_returned = n_returned / n_total
+    prop_timed_out = n_timed_out / n_total
+    print(
+        f"Total prolific participants: {pp_df['total'].sum()}\n"
+        f"Approved: {n_approved} ({prop_approved:.2%})\n"
+        f"Rejected: {n_rejected} ({prop_rejected:.2%})\n"
+        f"Returned: {n_returned} ({prop_returned:.2%})\n"
+        f"Timed-out: {n_timed_out} ({prop_timed_out:.2%})\n"
+    )
+    console.print(
+        "Screen recording exclusions - Carver Original - Multi Day - July",
+        style="yellow",
+    )
+    # these matter, because participants that were excluded from the screen recording
+    # show up in the 'total participants' count (NOT 'total participants on prolific'),
+    # but not in the 'approved' count (even if they always will be excluded).
+    # Thus it could seem as if there are more total participants than approved
+    # participants.
+    # In reality, it is the other way around: many approved participants did not
+    # submit data due to technical errors, but were approved, but they do not show up
+    # in the 'total participants' count.
+    screen_recording_exclusions_cj_counts = load_screen_recording_exclusions(
+        config={
+            "story": "carver_original",
+            "condition": "multi_day_carver_july",
+        }
+    )["exclusion"].value_counts()
+    screen_recording_exclusions_jc_counts = load_screen_recording_exclusions(
+        config={
+            "story": "july_original",
+            "condition": "multi_day_july_carver",
+        }
+    )["exclusion"].value_counts()
+    print(f"Carver-July: {screen_recording_exclusions_cj_counts}")
+    print(f"July-Carver: {screen_recording_exclusions_jc_counts}")
+    n_excluded = (
+        screen_recording_exclusions_cj_counts["excluded"]
+        + screen_recording_exclusions_jc_counts["excluded"]
+    )
+    print(f"Total excluded: {n_excluded}")
 
 
 def suppl_info_story_end_separated_continued():
